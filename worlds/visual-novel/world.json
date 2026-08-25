@@ -19,6 +19,17 @@
     },
     "closeWith": "ask"
   },
+  "viewport": {
+    "_note": "A constraint the runtime satisfies, never a size this world demands. Unlike Cartoon this world is genuinely fluid \u2014 every measurement in styles.css is in cqw/cqh \u2014 so it declares a RANGE rather than a single artboard aspect, per Cartoon's own _aspect_note: a world that genuinely reflows should declare none, or a range.",
+    "_measured": "Two things bound the range, and neither is taste. UPPER (2.10): backgrounds are 1.41-1.78 source aspect and object-fit:cover keeps bg_aspect/stage_aspect of their height \u2014 the three 1.41 backgrounds keep 79% at stage 1.78, 68% at 2.06, and 59% at 2.40. 2.10 caps the loss at 67%, which is the crop the composition was verified against. LOWER (1.78): below this the stage grows taller than the widest background, so cover starts cropping WIDTH instead and the composed edges of the art are lost. Across the three panel aspects the chrome was measured handing a world (1.96, 2.06, 2.11) this range wastes 0%, 0% and 0.5% of the panel, against 9.2%/13.6%/15.6% for a flat 1.78.",
+    "_floor": "The floor is the load-bearing half. Type is fixed px while the line column is 62cqw, so a narrower panel wraps the same text into more lines and the block grows into a box of fixed 27cqh. A capped 180-char line takes 3 lines at 1368 wide and clears by ~50px; at 1000 wide it takes 4 and overflows by ~20px. 1368x652 is the box this world was verified against. CAVEAT: the line-count figures assume ~0.5em per character; re-measure in a browser before trusting the exact number.",
+    "minWidth": 1368,
+    "minHeight": 652,
+    "aspect": [
+      1.78,
+      2.1
+    ]
+  },
   "voice": {
     "person": "the characters talk to each other, and to the student, who is present in the scene as a silent third classmate",
     "register": "two classmates working something out. Plain, curious, a little wry.",
@@ -65,7 +76,7 @@
     "face": {
       "mei-normal": "Mei: level and attentive. The default for a plain explanation.",
       "mei-smile": "Mei: a small closed smile, warm and unhurried.",
-      "mei-smile-2": "Mei: eyes closed, gently pleased. Use when something has just landed.",
+      "mei-pleased": "Mei: eyes closed, gently pleased. Use when something has just landed.",
       "mei-laugh": "Mei: eyes closed, open-mouthed, delighted.",
       "mei-delighted": "Mei: bright and open-mouthed, genuinely excited by the idea.",
       "mei-shocked": "Mei: wide eyes, mouth open. Use when a result is genuinely surprising.",
@@ -76,7 +87,7 @@
       "mei-sleepy": "Mei: heavy lids. Use sparingly, for a long or dry stretch.",
       "hana-normal": "Hana: level and attentive. The default for a plain explanation.",
       "hana-smile": "Hana: a small closed smile, warm and unhurried.",
-      "hana-smile-2": "Hana: eyes closed, gently pleased. Use when something has just landed.",
+      "hana-pleased": "Hana: eyes closed, gently pleased. Use when something has just landed.",
       "hana-laugh": "Hana: eyes closed, open-mouthed, delighted.",
       "hana-delighted": "Hana: bright and open-mouthed, genuinely excited by the idea.",
       "hana-shocked": "Hana: wide eyes, mouth open. Use when a result is genuinely surprising.",

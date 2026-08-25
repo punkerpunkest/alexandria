@@ -107,7 +107,7 @@ img:not([src]), img[src=""] { visibility: hidden; }
   background: var(--plate-bg);
   border: 2px solid var(--plate-edge);
   border-radius: 9px;
-  font-size: 20px; font-weight: 700; letter-spacing: 0.01em;
+  font-size: 22px; font-weight: 700; letter-spacing: 0.01em;
 }
 /* Hidden until a cast member is actually on stage. The opening frame has no beat,
    so no speaker — an empty plate there reads as a rendering fault. */
@@ -117,7 +117,7 @@ img:not([src]), img[src=""] { visibility: hidden; }
 .stack:has(.body[src$="body-mei.webp"])  .name::after { content: "Mei"; }
 .stack:has(.body[src$="body-hana.webp"]) .name::after { content: "Hana"; }
 
-.line { margin: 0; font-size: 21px; line-height: 1.5; max-width: 62cqw; }
+.line { margin: 0; font-size: 26px; line-height: 1.5; max-width: 78cqw; }
 
 /* ---- the opening frame --------------------------------------------------
    Before any module exists there is no beat, so no background and no cast. A real

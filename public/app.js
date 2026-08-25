@@ -533,8 +533,16 @@ function openingFrame() {
 if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint at stage 0');
 
 $('#next').onclick = () => go(+1);
-$('#back').onclick = () => go(-1);
+$('#back').onclick = () => { if (archetype.controls.back) go(-1); };
+// The chrome's fallback controls are the archetype's too. A world that declares no
+// controls slot gets these, so offering Back here would reintroduce the same bug for
+// any world that simply did not write a template.
+$('#back').hidden = !archetype.controls.back;
 addEventListener('keydown', (e) => {
+  // Back is an ARCHETYPE property, not a chrome one. scene-sequential declares no
+  // back control at all, and app.css only hides the footer BUTTON — the key binding
+  // and the button's handler both survived that, so a world whose whole contract is
+  // "forward only, with a history log" could still be walked backwards.
   if (e.key === 'ArrowRight') go(+1);
-  if (e.key === 'ArrowLeft') go(-1);
+  if (e.key === 'ArrowLeft' && archetype.controls.back) go(-1);
 });
