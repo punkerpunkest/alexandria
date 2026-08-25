@@ -235,26 +235,36 @@ img:not([src]), img[src=""] { visibility: hidden; }
    never triggers anything and never knows a navigation happened. */
 
 @keyframes vn-box-in  { from { opacity: 0; transform: translateY(1.6cqh) } to { opacity: 1; transform: none } }
-@keyframes vn-fade-in { from { opacity: 0 } to { opacity: 1 } }
-@keyframes vn-enter   { from { opacity: 0; transform: translateY(1.2cqh) scale(0.995) } to { opacity: 1; transform: none } }
+@keyframes vn-swap    { from { transform: translateX(-1.2cqw) } to { transform: none } }
 @keyframes vn-nudge   { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(18%) } }
 
 /* The screen only holds the box — bg and sprite were hoisted out — so animating the
    screen animates the text alone, which is what a scene-sequential beat should do. */
 [data-phase="entering"] .box { animation: vn-box-in var(--motion-duration, 260ms) ease-out both; }
 
-/* A character swap moves the whole sprite; an expression change moves only the face.
-   The :not() guard matters: on a character swap BOTH slots carry data-changed, and
-   without it the face would animate twice, once on its own and once with its body. */
-.sprite:has(.body[data-changed]) { animation: vn-enter calc(var(--motion-duration, 260ms) * 1.15) ease-out both; }
-.sprite:not(:has(.body[data-changed])) .face[data-changed] { animation: vn-fade-in var(--motion-duration, 260ms) ease-out both; }
+/* NEVER ANIMATE OPACITY ON A PERSISTED ELEMENT.
+   A persisted element is one <img> whose src mutates in place, so there is no
+   outgoing image to blend against — an opacity ramp shows the ABSENCE of the thing,
+   not a crossfade. Here that is worse than generic: the base body carries no facial
+   features (they are all in the overlay, 16.9k opaque px of 108k), so fading the face
+   in from 0 left a blank head on screen for the whole duration. The background had the
+   same fault and would flash the empty stage.
 
-/* Location changes are rare by design — background declares hold: "module" — so this
-   only ever runs at a module boundary, and it can afford to be slower than a beat. */
-.bg[data-changed] { animation: vn-fade-in calc(var(--motion-duration, 260ms) * 1.8) ease-out both; }
+   Opacity entrances are correct for a SCREEN, which really is a new node with nothing
+   behind it. That is why .box below still fades. Persisted elements move instead. */
 
-/* A misconception beat is the one the student is most likely to skim. Tint the box
-   edge rather than moving anything: motion may never be the reason a beat was missed. */
+/* A character swap slides at full opacity — motion feedback with no blank frame. */
+.sprite:has(.body[data-changed]) {
+  animation: vn-swap calc(var(--motion-duration, 260ms) * 1.15) ease-out both;
+}
+
+/* An expression change is an instant cut, which is what visual novels do anyway.
+   Restoring a true crossfade would mean baking a neutral face into the base so the
+   overlay has something to blend against — a re-export, not a stylesheet change. */
+
+/* Location changes are rare by design — background declares hold: "module" — and a
+   hard cut at a module boundary is standard. No opacity ramp, for the reason above. */
+
 [data-kind="misconception"] .box { border-color: rgb(168, 132, 96); }
 
 @media (prefers-reduced-motion: reduce) {
