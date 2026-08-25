@@ -1,0 +1,56 @@
+{
+  "overlay_rect": [
+    321,
+    359,
+    681,
+    660
+  ],
+  "canvas": [
+    1011,
+    1145
+  ],
+  "cast": {
+    "mei": {
+      "base": 170384,
+      "faces": {
+        "smile": 26794,
+        "shocked": 28836,
+        "normal": 26426,
+        "delighted": 28688,
+        "sad": 26832,
+        "angry": 29996,
+        "smug": 27368,
+        "annoyed": 26710,
+        "sleepy": 25336,
+        "smile-2": 22340,
+        "laugh": 24146
+      },
+      "back": "Long Hair / Hime Cut",
+      "front": "Hime Cut",
+      "colour": "Brown",
+      "costume": "seifuku 2",
+      "accessory": "Circle Glasses"
+    },
+    "hana": {
+      "base": 158922,
+      "faces": {
+        "smile": 15018,
+        "shocked": 16680,
+        "normal": 14590,
+        "delighted": 16526,
+        "sad": 15306,
+        "angry": 18442,
+        "smug": 15170,
+        "annoyed": 14596,
+        "sleepy": 13652,
+        "smile-2": 8448,
+        "laugh": 10292
+      },
+      "back": "Twin Tail",
+      "front": "Twin tail / Short Hair",
+      "colour": "Dark",
+      "costume": "seifuku 1",
+      "accessory": null
+    }
+  }
+}

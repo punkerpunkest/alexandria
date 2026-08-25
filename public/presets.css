@@ -1,0 +1,83 @@
+/* ALEXANDRIA MOTION PRESETS — shipped by the runtime, not by any world.
+ *
+ * This sheet is injected into the shadow root FIRST, the world's stylesheet
+ * second. Both key on the same published state, so a world that writes its own
+ * rule wins on cascade order and a world that writes nothing still moves. There
+ * is deliberately no resolution logic anywhere in the projector: the browser's
+ * cascade IS the resolution logic.
+ *
+ * Nothing in here may know the name of a world, a channel or a class a world
+ * chose. Everything below targets published state only.
+ *
+ * THE PUBLISHED VOCABULARY (the runtime's whole spoken language)
+ *   [data-phase]           on a screen root: entering | settled | leaving
+ *   [data-nav]             on a screen root: forward | back
+ *   [data-kind]            on a screen root: the beat's kind, verbatim
+ *   --motion-duration      on .stack, inherited: world-declared, clamped, scaled
+ *   [data-changed]         on any [data-slot] whose value differs from the
+ *                          previous screen's beat
+ *   [data-persist]         declared BY the world, honoured by the projector:
+ *                          the element is hoisted out of the per-screen
+ *                          lifecycle and survives navigation
+ *   --progress etc.        on [data-readout] elements
+ */
+
+/* ---- the stack: the projector's own box, which a world MAY style ----
+   One grid cell holds every screen and every persisted element, so overlap is
+   structural and a world never has to think about it. This is also the size
+   container, so cqw/cqh resolve identically for a screen and for an element
+   that was hoisted out of one. */
+.stack {
+  position: relative;
+  display: grid;
+  height: 100%;
+  container-type: size;
+}
+.stack > * { grid-area: 1 / 1; }
+
+/* LAYERING. Every child of the stack sits in the same grid cell, so without an
+   explicit order the DOM decides — and screens are appended last, which puts a
+   full-cell transparent screen ON TOP of everything hoisted out of it. Hit
+   testing ignores backgrounds, so that is enough to swallow every click on a
+   persisted control. (It did. See worlds/cartoon/REFACTOR.md.)
+   Screens above persisted elements is the right default: a visual novel's
+   background and standing sprite both belong behind the text. A world may
+   re-layer its own persisted elements freely. */
+.stack > [data-persist] { z-index: 0; }
+.stack > [data-phase]   { z-index: 1; }
+
+/* CONTROLS ARE THE EXCEPTION, AND IT IS NOT A STYLING PREFERENCE.
+   Controls are runtime-owned, and "the student can always press Continue" is an
+   invariant no world may break by accident. The projector stamps data-layer on
+   whatever hoisted element carries the controls slot, and it goes above screens.
+   A world that wants a control visually behind something must say so itself. */
+.stack > [data-layer='controls'] { z-index: 2; }
+
+/* A screen on its way out is still on the page for a moment. It must not be
+   clickable, or a fast second Continue can land on the dying screen's button. */
+[data-phase='leaving'] { pointer-events: none; }
+
+/* ---- default motion ----
+   A cross-fade: the only entrance that assumes nothing about a world's layout.
+   Directional defaults would guess wrong for a world whose content is vertical. */
+@keyframes alx-fade-in  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes alx-fade-out { from { opacity: 1 } to { opacity: 0 } }
+
+[data-phase] {
+  animation-duration: var(--motion-duration, 240ms);
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+[data-phase='entering'] { animation-name: alx-fade-in; }
+[data-phase='leaving']  { animation-name: alx-fade-out; }
+
+/* ---- accessibility is the runtime's, never a world's ----
+   --motion-duration is already 0 under this setting, so this is the second of
+   two belts. A world should not have to remember to write it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

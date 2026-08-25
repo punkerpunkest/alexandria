@@ -1,0 +1,34 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: #eef0fb; font: 15px/1.5 -apple-system, system-ui, sans-serif; color: #26268c; }
+main { max-width: 1460px; margin: 0 auto; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 12px 18px; }
+header { display: flex; justify-content: space-between; align-items: baseline; }
+.brand { font-weight: 700; letter-spacing: .2px; }
+.brand em { font-style: normal; opacity: .55; }
+.progress { font-variant-numeric: tabular-nums; opacity: .6; }
+#stage { background: #fff; border: 1px solid #d7d9ee; border-radius: 20px; overflow: hidden; position: relative; }
+#ask { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px; text-align: center; }
+#ask h1 { margin: 0; font-size: 24px; }
+#askform { display: flex; gap: 10px; width: min(560px, 100%); }
+#q { flex: 1; padding: 13px 16px; border: 3px solid #6b6bd6; border-radius: 14px; font-size: 15px; font-family: inherit; }
+button { padding: 12px 20px; border: 3px solid #6b6bd6; border-radius: 14px; background: #d9d6f3; color: #26268c; font: inherit; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+.hint { margin: 0; opacity: .55; }
+footer { display: flex; align-items: center; gap: 10px; }
+.metrics { margin-left: auto; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .75; white-space: pre; text-align: right; }
+.thinking { height: 100%; display: grid; place-items: center; opacity: .5; }
+
+/* When a world declares its own controls or readouts, the chrome stands down.
+   A world that declares neither keeps the chrome's default placement — see
+   `Alexandria - World Spec`, the controls callout. */
+body.world-controls footer #back,
+body.world-controls footer #next { display: none; }
+body.world-progress header .progress { display: none; }
+
+/* The metrics readout is dev instrumentation. It was taking three lines out of the
+   grid, which is vertical space the world needs — the stage was 583px tall against a
+   design drawn at 772. Float it instead. */
+body.world-controls main { grid-template-rows: auto 1fr; }
+body.world-controls footer {
+  position: fixed; right: 20px; bottom: 6px;
+  margin: 0; pointer-events: none; opacity: .55;
+}

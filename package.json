@@ -1,0 +1,13 @@
+{
+  "name": "alexandria-spike",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Wire spike: Claude Code as a long-lived child process filling a world's slots.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10"
+  }
+}

@@ -1,0 +1,325 @@
+/* Cartoon. The world owns everything in here. No JavaScript ships with a world.
+ *
+ * GEOMETRY IS CONTAINER-RELATIVE, TYPE IS NOT.
+ * Every position and size below is in `cqw` / `cqh` — percentages of the stage the
+ * runtime hands this world — so the composition keeps its proportions at any panel
+ * size. Type stays in pixels on purpose: `Alexandria - World Spec` forbids shrinking
+ * type to make text fit, so when type and geometry disagree the answer is to reflow
+ * or split, never to scale the words down.
+ *
+ * Reference artboard: 1368 x 772. Every number is that board's value over the board's
+ * size, so the comment beside it is the pixel it came from.
+ *
+ * THE STACK IS THE CONTAINER, NOT THE SCREEN.
+ * Three elements here carry `data-persist`, so the projector hoists them OUT of the
+ * screen and onto the stack, where they outlive navigation. That means they cannot
+ * resolve cqw/cqh or absolute offsets against `.screen` any more. `.stack` is the
+ * projector's own element, is the size container, and is the one projector-owned box
+ * a world is allowed to style — so every measurement below still resolves against the
+ * same rectangle it always did, whether its element sits inside a screen or beside one.
+ */
+
+@font-face { font-family: 'Nunito'; font-weight: 400; font-display: block;
+             src: url('fonts/Nunito-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Nunito'; font-weight: 700; font-display: block;
+             src: url('fonts/Nunito-Bold.ttf') format('truetype'); }
+@font-face { font-family: 'Nunito'; font-weight: 800; font-display: block;
+             src: url('fonts/Nunito-ExtraBold.ttf') format('truetype'); }
+
+:host {
+  --paper: #ffffff;      /* Snow  */
+  --line:  #e5e5e5;      /* Swan  */
+  --ink:   #4b4b4b;      /* Eel   */
+  --muted: #777777;      /* Wolf  */
+  --hare:  #afafaf;      /* Hare  */
+  --green: #58cc02;      /* Owl   */
+  --green-deep: #58a700; /* Tree Frog */
+
+  /* Two knobs. 1 reproduces the board exactly.
+     --scale sizes the cast and the controls; --box sizes the text cards. */
+  --scale: 0.9;
+  --box: 0.85;
+
+  display: block; height: 100%;
+  background: var(--paper);
+  font-family: 'Nunito', ui-rounded, -apple-system, system-ui, sans-serif;
+  color: var(--ink);
+}
+
+/* The projector's box. Presets already made it a one-cell grid and the size
+   container; this adds only what is Cartoon's taste. */
+.stack {
+  max-width: 1368px;             /* past the board width, extra room becomes margin */
+  margin: 0 auto;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+/* After hoisting, a screen carries the text column and nothing else. It stretches
+   to the whole cell, so it is the same rectangle as .stack and anything still
+   positioned against it lands exactly where it did before. */
+.screen { position: relative; }
+
+/* ---- readout: the runtime sets --progress, this file decides what that means ---- */
+.progress {
+  position: absolute;
+  left: 9.942cqw;                /*  136 / 1368 */
+  top: 7.772cqh;                 /*   60 /  772 */
+  width: 84.795cqw;              /* 1160 / 1368 */
+  height: 2.850cqh;              /*   22 /  772 */
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+/* This transition only fires because the bar PERSISTS. On a fresh node there is
+   no previous width to interpolate from, so before data-persist the fill jumped. */
+.progress > i {
+  display: block;
+  width: calc(var(--progress, 0) * 100%);
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green);
+  position: relative;
+  transition: width .45s cubic-bezier(.22, .61, .36, 1);
+}
+.progress > i::after {           /* the highlight along the top of the fill */
+  content: '';
+  position: absolute; left: 10px; right: 14px; top: 22%; height: 27%;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, .3);
+}
+
+/* ---- the cast ----
+   Bottom-anchored so her feet land on the next control's floor (8.808cqh) whatever
+   the text above does. The asset carries whitespace below her shadow — 13 of her 564,
+   so 1.684cqh — and that shrinks with her, so it comes out of the offset rather than
+   being a constant. If the art is ever re-cropped tight, drop the second term. */
+.teacher {
+  position: absolute;
+  left: 6.579cqw;                                    /*  90 / 1368 */
+  width:  calc(26.316cqw * var(--scale));            /* 360 / 1368 */
+  height: calc(73.057cqh * var(--scale));            /* 564 /  772 */
+  bottom: calc(8.808cqh - 1.684cqh * var(--scale));
+  object-fit: contain;
+  object-position: bottom center;
+  transform-origin: bottom center;
+}
+
+/* ---- the text column ----
+   Both edges are DERIVED from her rather than set independently, so the relationship
+   survives any --scale. Left: her right edge plus a 20px gutter. Top: her frame top
+   plus 10px — which is where the board puts it, level with the top of her hair. */
+.column {
+  position: absolute;
+  left: calc(6.579cqw + 27.778cqw * var(--scale));   /* her left + her width + gutter */
+  top:  calc(91.192cqh - 70.078cqh * var(--scale));  /* her frame top + 10px */
+  width: calc(57.749cqw * var(--box));               /* 790 / 1368 */
+  display: flex;
+  flex-direction: column;
+  gap: calc(3.627cqh * var(--box));                  /*  28 /  772 */
+}
+
+/* ---- speech bubble, with the tail built from two triangles ---- */
+.bubble {
+  position: relative;
+  box-sizing: border-box;
+  padding: calc(28px * var(--box)) calc(34px * var(--box));
+  border: 2px solid var(--line);
+  border-radius: calc(22px * var(--box));
+  background: var(--paper);
+}
+.bubble::before,
+.bubble::after {
+  content: '';
+  position: absolute;
+  width: 0; height: 0;
+  border-style: solid;
+  border-color: transparent;
+}
+.bubble::before {                /* outer — reads as the border */
+  top: calc(38px * var(--box)); right: 100%;
+  border-width: calc(19px * var(--box)) calc(19px * var(--box)) calc(19px * var(--box)) 0;
+  border-right-color: var(--line);
+}
+.bubble::after {                 /* inner — fill, offset to hide the seam */
+  top: calc(40px * var(--box)); right: calc(100% - 2px);
+  border-width: calc(17px * var(--box)) calc(17px * var(--box)) calc(17px * var(--box)) 0;
+  border-right-color: var(--paper);
+}
+.line {
+  margin: 0;
+  font-size: calc(30px * var(--box));
+  line-height: calc(44px * var(--box));
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---- body card ---- */
+.card {
+  box-sizing: border-box;
+  padding: calc(28px * var(--box)) calc(30px * var(--box));
+  border: 2px solid var(--line);
+  border-radius: calc(16px * var(--box));
+  background: var(--paper);
+}
+.body {
+  margin: 0;
+  font-size: calc(21px * var(--box));
+  line-height: calc(35px * var(--box));
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* ---- controls: the archetype says which exist, this file says where and how ---- */
+.controls { position: absolute; inset: 0; pointer-events: none; }
+.controls [data-control] {
+  position: absolute;
+  pointer-events: auto;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.controls [data-control='back'] {
+  left: 5.263cqw;                /*  72 / 1368 */
+  top: 6.736cqh;                 /*  52 /  772 */
+  width: 2.924cqw; height: 2.924cqw;
+  padding: 0; border: 0; background: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3 -3 22 34'%3E%3Cpath d='M16 0L0 14l16 14' fill='none' stroke='%23afafaf' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 55% 85%;
+  opacity: 1;
+  transition: opacity .2s ease-out;
+}
+.controls [data-control='back'][hidden] { display: none; }
+
+.controls [data-control='next'] {
+  right: 5.263cqw;
+  bottom: calc(8.808cqh + 6px);  /* +6 so the underside floor lands on 8.808cqh */
+  min-width: calc(232px * var(--scale));
+  height: calc(62px * var(--scale));
+  padding: 0 calc(24px * var(--scale));
+  border: 0;
+  border-radius: calc(18px * var(--scale));
+  background: var(--green);
+  box-shadow: 0 6px 0 var(--green-deep);
+  color: #fff;
+  font-size: calc(19px * var(--scale));
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  /* The button persists now, so these interpolate instead of snapping. */
+  transition: background-color .2s ease-out, box-shadow .12s ease-out,
+              color .2s ease-out, transform .12s ease-out;
+}
+.controls [data-control='next']:active {
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 var(--green-deep);
+}
+.controls [data-control='next'][disabled] {
+  background: var(--line);
+  box-shadow: 0 6px 0 #d0d0d0;
+  color: var(--hare);
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOTION
+   The runtime says WHEN by publishing state; this file says what it looks like.
+   Nothing below is named in world.json — the manifest declares only a duration.
+
+   Published state this world listens for:
+     [data-phase]   entering | settled | leaving   on the screen root
+     [data-nav]     forward | back                 on the screen root
+     [data-kind]    the beat's kind                on the screen root
+     [data-changed] on a [data-slot] whose value differs from the last screen's
+     --motion-duration  inherited from the stack, already clamped and scaled
+
+   Three elements are absent from all of it on purpose. The teacher, the progress
+   bar and the button PERSIST, so they are not inside the screen that is entering
+   or leaving and no transition can touch them. That is the entire point: what
+   moves is what changed.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The presets sheet cross-fades whole screens by default. Cartoon overrides that
+   — a screen holds only the text column, and the two cards should arrive one
+   after the other rather than together. This one line is the override story
+   working: presets are injected first, so this wins on cascade order. */
+.screen[data-phase] { animation-name: none; }
+
+/* WHY THESE ARE SEQUENCED AND NOT CROSS-FADED.
+   Both screens occupy the same cell, so if the outgoing text fades out while the
+   incoming fades in, there is a frame where both sit at ~50% in the same place
+   and BOTH ARE LEGIBLE — a double exposure. Measured: at the crossover the two
+   paragraphs read straight through each other. Opaque card backgrounds do not
+   save it, because a 50%-opaque white card only masks half of what is under it.
+   So the old text leaves fast and the new one starts exactly when it has gone:
+   --enter-lag equals --exit-dur, so the overlap is ZERO and no frame ever shows
+   two texts at once. A hard handoff would normally read as a stutter, but the
+   teacher, the progress bar and the button all persist, so the frame is never
+   empty — only the text is ever in flight. Measured before this fix: 47%/53%
+   both legible. After: 0%. */
+.stack {
+  --exit-dur:  calc(var(--motion-duration, 280ms) * .45);
+  --enter-dur: calc(var(--motion-duration, 280ms) * .65);
+  --enter-lag: calc(var(--motion-duration, 280ms) * .45);
+  --card-lag:  calc(var(--motion-duration, 280ms) * .60);
+}
+
+[data-phase='entering'] .bubble,
+[data-phase='entering'] .card {
+  animation-duration: var(--enter-dur);
+  animation-timing-function: cubic-bezier(.22, .61, .36, 1);
+  animation-fill-mode: both;              /* holds at opacity 0 through the lag */
+}
+[data-phase='entering'] .bubble { animation-delay: var(--enter-lag); }
+/* The card trails the bubble: she says the line, then the detail lands under it. */
+[data-phase='entering'] .card   { animation-delay: var(--card-lag); }
+
+/* Exits are not staggered and accelerate away — leaving should feel like one
+   movement, not a queue. */
+[data-phase='leaving'] .bubble,
+[data-phase='leaving'] .card {
+  animation-duration: var(--exit-dur);
+  animation-delay: 0s;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+}
+
+@keyframes cartoon-in-right  { from { opacity: 0; transform: translateX(34px) }  to { opacity: 1; transform: none } }
+@keyframes cartoon-in-left   { from { opacity: 0; transform: translateX(-34px) } to { opacity: 1; transform: none } }
+@keyframes cartoon-out-left  { from { opacity: 1; transform: none } to { opacity: 0; transform: translateX(-26px) } }
+@keyframes cartoon-out-right { from { opacity: 1; transform: none } to { opacity: 0; transform: translateX(26px) } }
+/* No sideways travel: a misconception beat should feel like it settles into
+   place rather than slides past, so the tricky one reads different before a
+   single word of it has been read. */
+@keyframes cartoon-settle    { from { opacity: 0; transform: scale(.965) translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes cartoon-pop       { 0% { transform: scale(1) }  42% { transform: scale(1.045) rotate(-1.5deg) }  100% { transform: scale(1) } }
+
+[data-phase='entering'][data-nav='forward'] .bubble,
+[data-phase='entering'][data-nav='forward'] .card { animation-name: cartoon-in-right; }
+
+[data-phase='entering'][data-nav='back'] .bubble,
+[data-phase='entering'][data-nav='back'] .card { animation-name: cartoon-in-left; }
+
+/* Equal specificity to the two rules above, so source order decides — this must
+   stay below them. */
+[data-phase='entering'][data-kind='misconception'] .bubble,
+[data-phase='entering'][data-kind='misconception'] .card { animation-name: cartoon-settle; }
+
+[data-phase='leaving'][data-nav='forward'] .bubble,
+[data-phase='leaving'][data-nav='forward'] .card { animation-name: cartoon-out-left; }
+
+[data-phase='leaving'][data-nav='back'] .bubble,
+[data-phase='leaving'][data-nav='back'] .card { animation-name: cartoon-out-right; }
+
+/* She persists, so this fires on the same element every time — the pose swaps
+   under a bounce rather than the whole figure being redrawn. data-changed is
+   present only when the projector saw this slot's value actually change, so she
+   holds still through a run of concept beats and reacts when the pose turns. */
+.teacher[data-changed] {
+  animation: cartoon-pop calc(var(--motion-duration, 280ms) * 1.25) cubic-bezier(.34, 1.4, .64, 1) both;
+}
+
+/* prefers-reduced-motion is handled by the runtime's presets sheet and by
+   --motion-duration collapsing to 0. A world should not have to remember it. */

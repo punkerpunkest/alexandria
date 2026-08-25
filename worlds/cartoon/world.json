@@ -1,0 +1,85 @@
+{
+  "_note": "SPIKE SCOPE: this world stages a module of teaching beats. Interactives (micro sets and installed sandbox engines) are a separate unit at the module boundary, hosted by the arena, and are NOT implemented here. Do not infer their size, duration or cost from anything in this file.",
+  "_reserved": "'checkpoint' is a RESERVED beat kind. It was cut from the PoC on 23 Aug 2026 \u2014 the interactive is now the only scored object and nothing in a module gates. The name stays reserved so it is not recycled and so the vocabulary is unchanged when gating lands. Nothing generates, paginates, renders or gates it today.",
+  "id": "cartoon",
+  "name": "Cartoon",
+  "version": "0.5.2",
+  "archetype": "paginated",
+  "viewport": {
+    "_note": "The box this world was DESIGNED AGAINST, declared as a constraint the runtime satisfies \u2014 never a size the world demands. It is the artboard, 1368x772, which is the honest answer: that is the rectangle every measurement in styles.css was derived from. Above it Cartoon is genuinely fluid and simply scales up. Below it the runtime still hands the world this box, so its container units resolve exactly as verified, and scales the whole result down to fit.",
+    "_measured": "BOTH axes are load-bearing, and it is not obvious why. Type is fixed in px while the column width is a proportion of the panel, so a narrower panel wraps the same text into more lines and the body card grows. Clearance between the body card and the Continue control, with an 80-char line and a 300-char body (both at cap): at 1368x772 it is +104px; at 1100x640 it is -5px; at 900x640 it is -101px and needs 860px of height to clear. A height-only floor would therefore pass at one width and collide at another.",
+    "minWidth": 1368,
+    "minHeight": 772,
+    "_aspect_note": "Declaring no aspect means 'I will use whatever shape you give me'. Cartoon said that and did not mean it: satisfying both floors independently preserves the SCREEN's aspect, not the world's, so on a tall-ish window it received 1368x1145 and left a dead band under the text. Its composition is anchored to a board, so it declares the board's aspect and is letterboxed. A world that genuinely reflows should declare none, or a range.",
+    "aspect": 1.772
+  },
+  "beats": {
+    "min": 3,
+    "max": 6,
+    "kinds": [
+      "concept",
+      "misconception"
+    ]
+  },
+  "pagination": {
+    "policy": "one-beat-per-screen",
+    "screenFor": {
+      "default": "module"
+    }
+  },
+  "voice": {
+    "person": "second person, talking straight to the student",
+    "register": "warm, plain, sure of itself, never breathless",
+    "forbidden": [
+      "hedging phrases like 'it depends' or 'generally speaking'",
+      "any mention of being a model, an assistant, or generating anything",
+      "stacked exclamation marks or emoji"
+    ],
+    "samples": [
+      "Two atoms share electrons because neither can hold a full shell alone.",
+      "You already know the shape of this one, you just have not named it yet.",
+      "Careful here, this is the step almost everyone gets backwards."
+    ]
+  },
+  "channels": {
+    "mascot_line": {
+      "kind": "text",
+      "maxLength": 80,
+      "job": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard.",
+      "mustBeClaim": true
+    },
+    "body": {
+      "kind": "text",
+      "maxLength": 300,
+      "job": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight \u2014 this card does not scroll."
+    },
+    "expression": {
+      "kind": "enum",
+      "set": "mascot",
+      "values": [
+        "explaining",
+        "considering"
+      ],
+      "restrict": {
+        "considering": "misconception"
+      },
+      "job": "The teacher's pose."
+    }
+  },
+  "assets": {
+    "mascot": {
+      "explaining": "open-handed, mid-explanation, warm. The default for a concept beat.",
+      "considering": "hand to chin, weighing something up. Use on a misconception beat, where the point is that this is the tricky part."
+    }
+  },
+  "assetFormat": {
+    "mascot": "webp"
+  },
+  "motion": {
+    "_note": "The world declares a duration; the runtime clamps it (600ms ceiling) and scales it by the global speed setting, and zeroes it under prefers-reduced-motion. There are no animation NAMES here any more: the projector publishes state (data-phase / data-nav / data-kind / data-changed) and styles.css reacts. See `Alexandria - Rendering`.",
+    "duration": 280
+  },
+  "screens": {
+    "module": "screens/module.html"
+  }
+}
