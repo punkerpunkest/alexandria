@@ -9,6 +9,8 @@ import { paginate, readingTimeMs } from './src/paginate.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const WORLD_ID = process.env.WORLD ?? 'cartoon';
+// Hardcoding this made two worlds impossible to run side by side.
+const PORT = Number(process.env.PORT ?? 4173);
 const worldDir = join(ROOT, 'worlds', WORLD_ID);
 const world = JSON.parse(await readFile(join(worldDir, 'world.json'), 'utf8'));
 
@@ -97,7 +99,7 @@ createServer(async (req, res) => {
   } catch (err) {
     return send(res, url.pathname.startsWith('/api') ? 500 : 404, { error: String(err.message ?? err) });
   }
-}).listen(4173, () => {
+}).listen(PORT, () => {
   console.log(`\n  Alexandria spike — world "${world.name}"`);
-  console.log(`  http://localhost:4173\n`);
+  console.log(`  http://localhost:${PORT}\n`);
 });
