@@ -41,17 +41,29 @@ smug, annoyed, sleepy.
 One speaker on stage at a time, centred and bottom-anchored. There is no `position`
 channel - the world pins the sprite in CSS, so the vocabulary stays as small as it can be.
 
+The sprite is a grid child of `.stack`, so it is placed by alignment rather than by
+absolute offsets. That matters: it is hoisted out of the screen by `data-persist`, and
+an absolutely-positioned element would then resolve against whichever ancestor happened
+to be positioned.
+
 ```css
-.vn-stage  { position: relative; overflow: hidden; }
-.vn-sprite {
-  position: absolute;
-  bottom: 0;                       /* never head-anchor: see below */
-  left: 50%;
-  transform: translateX(-50%);
-  height: 90%;                     /* of stage height; width follows the 1011:1145 aspect */
-  width: auto;
+.sprite {
+  align-self: end;                 /* never head-anchor: see below */
+  justify-self: center;
+  position: relative;              /* the face overlay resolves against this */
+  height: calc(90cqh * var(--sprite-scale));
+  aspect-ratio: 1011 / 1145;       /* the PSD canvas */
 }
 ```
+
+**Pin the stack's grid row, or a full-bleed image inflates it.** `.stack` is
+`display:grid; height:100%` with one implicit row. An in-flow child with `height:100%`
+resolves against a row that is itself auto-sized from content - circular, so the browser
+falls back to the image's INTRINSIC height. A 1920x1080 background at 1404 wide produced
+a 790px row inside a 665px stack, which pushed the bottom-anchored sprite 123px below the
+stage and put the dialogue box across the character's face. Cartoon never hits this
+because it ships no full-bleed image. Two guards: `grid-template-rows: minmax(0, 1fr)` on
+`.stack`, and `position:absolute; inset:0` on the background so it cannot try.
 
 **Bottom-anchor, always.** A sprite whose bottom edge lands inside the frame reads as a
 floating torso, because the cut shows through a translucent textbox. Anchoring to the
@@ -68,6 +80,24 @@ If the textbox top moves, recompute: `s_min = (1 - box_top) / (1 - 0.577)`.
 Two characters can still disagree, which is what the confidence-laundering mechanism
 needs; it plays as alternating turns rather than a two-shot. Restoring a two-shot later
 means re-adding `position` to the manifest, so it is a contract change, not a CSS change.
+
+## The dialogue box and the ask
+
+Box text is flex-centred rather than top-padded. A beat is one line or three, and the
+offsets differ - 65.9px above a two-line beat, 81.6px above a one-liner - so no single
+fixed padding is right for both.
+
+The ask slot is a **sibling** of `.box`, not a child, so it floats over the scene the way
+a visual novel stages a choice menu rather than sitting inside the panel. It is centred
+horizontally and sits at **32%** of stage height, not 50%: the sprite's top is at 10% and
+the face begins 31.35% down it, so the face starts at 10 + 0.3135*90 = 38.2%. A bar at
+true centre lands across the eyes and reads as a censor bar.
+
+On the opening frame nothing is on stage, so the box drops its background and border and
+both elements centre together as one group. That state is detected by the **absence of a
+background** (`.stack:not(:has(.bg[src]))`), not by a screen class, because `ask` is also
+the module-boundary screen where the box IS wanted. The template puts the ask slot before
+the box, so the opening frame restores reading order with `order`.
 
 ## Placing the face overlay
 

@@ -1,0 +1,262 @@
+/* Visual Novel. The world owns everything in here. No JavaScript ships with a world.
+ *
+ * GEOMETRY IS CONTAINER-RELATIVE, TYPE IS NOT.
+ * Positions are in cqw/cqh against `.stack`, which is the projector's size container
+ * and the one projector-owned box a world may style. Type stays in px: World Spec
+ * forbids shrinking type to make text fit.
+ *
+ * Reference artboard: 1368 x 664 — the box the chrome actually hands a world, not the
+ * 1368 x 772 Cartoon designs against. Every number below is that board's value.
+ *
+ * THE STACK IS THE CONTAINER, NOT THE SCREEN.
+ * `bg` and `sprite` carry data-persist, so the projector hoists them out of the screen
+ * and onto the stack, where they outlive navigation. That is what makes an expression
+ * crossfade possible at all: a browser can only animate between two states of ONE
+ * element. It also means they resolve cqw/cqh against `.stack`, same rectangle either way.
+ */
+
+:host {
+  /* The nameplate and box are the only invented colour in this world; everything
+     else is the artwork. Tuned against the two screenshots in screenshots/. */
+  --box-bg:     rgba(14, 18, 32, 0.87);
+  --box-edge:   rgb(96, 116, 168);
+  --plate-bg:   rgb(46, 58, 94);
+  --plate-edge: rgb(120, 142, 196);
+  --ink:        rgb(226, 232, 248);
+
+  /* One knob. 1 reproduces the board exactly. */
+  --sprite-scale: 1;
+
+  /* TODO: bundle a face. Cartoon ships Nunito in its package and this world should
+     ship its own; until then this is a stack, not a choice. */
+  font-family: "Hiragino Sans", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---- the stage ---------------------------------------------------------- */
+
+/* THE ROW MUST BE PINNED, OR A FULL-BLEED IMAGE INFLATES IT.
+   `.stack` is `display:grid; height:100%` with one implicit row. An in-flow child
+   with `height:100%` resolves against a row that is itself auto-sized from content —
+   circular, so the browser falls back to the image's INTRINSIC height and the row
+   grows past the stage. A 1920x1080 background at 1404 wide made a 790px row inside
+   a 665px stack, which pushed the bottom-anchored sprite 123px below the stage and
+   put the dialogue box across the character's face. Cartoon never hit this because
+   it ships no full-bleed image. Two guards, deliberately:
+     1. pin the row so nothing can grow it (the world may style .stack)
+     2. take the background out of flow entirely so it cannot try */
+.stack { grid-template-rows: minmax(0, 1fr); }
+.stack > * { min-height: 0; }
+
+.bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+/* Before the first module there is no beat, so these slots have no value and the
+   browser would draw its broken-image glyph. Hide rather than blank: the element
+   must stay in the DOM or it stops being persistable. */
+img:not([src]), img[src=""] { visibility: hidden; }
+
+/* Bottom-anchored and centred, using the grid cell rather than absolute offsets —
+   the sprite is a stack child, so align/justify place it without a positioned parent.
+   BOTTOM-ANCHOR IS NOT A PREFERENCE. A sprite whose bottom edge lands inside the
+   frame shows its cut through the translucent box and reads as a floating torso.
+   90cqh is not arbitrary either: the expression bbox bottoms out at 660/1145 = 0.577
+   of the canvas, so bottom-anchored at scale s the chin sits at (1-s) + 0.577s, and
+   clearing a box whose top edge is at 66% needs s >= 0.803. Below that the box lands
+   across the character's mouth. If --box-top moves, recompute. */
+.sprite {
+  align-self: end;
+  justify-self: center;
+  position: relative;                    /* the face overlay resolves against this */
+  height: calc(90cqh * var(--sprite-scale));
+  aspect-ratio: 1011 / 1145;             /* the PSD canvas */
+}
+.sprite .body { display: block; width: 100%; height: 100%; }
+
+/* The face overlay's rect in the PSD is (321,359) 360x301 on a 1011x1145 canvas.
+   Percentages, not pixels, so it tracks the sprite at any stage size. */
+.sprite .face { position: absolute; left: 31.751%; top: 31.354%; width: 35.608%; }
+
+/* ---- the dialogue box --------------------------------------------------- */
+
+.screen { position: relative; }
+
+.box {
+  position: absolute;
+  left: 6cqw; right: 6cqw; top: 66cqh; height: 27cqh;
+  box-sizing: border-box;
+  padding: 2.6cqh 2.2cqw;
+  /* Centred rather than top-padded: a beat is one line or three, and a fixed
+     top offset can only be right for one of them. The nameplate and controls are
+     absolutely positioned, so neither joins this flow. */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--box-bg);
+  border: 2px solid var(--box-edge);
+  border-radius: 14px;
+  color: var(--ink);
+}
+
+/* The nameplate is a tab riding the box's top edge. Its text is not a channel:
+   there is no speaker_name and adding one would let the model disagree with itself.
+   It is derived from the asset actually on screen, via the persisted sprite's src. */
+.name {
+  position: absolute; top: -3.9cqh; left: 1.3cqw;
+  min-width: 9.6cqw; height: 5.7cqh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 0.9cqw;
+  background: var(--plate-bg);
+  border: 2px solid var(--plate-edge);
+  border-radius: 9px;
+  font-size: 20px; font-weight: 700; letter-spacing: 0.01em;
+}
+/* Hidden until a cast member is actually on stage. The opening frame has no beat,
+   so no speaker — an empty plate there reads as a rendering fault. */
+.name { display: none; }
+.stack:has(.body[src$="body-mei.webp"])  .name { display: flex; }
+.stack:has(.body[src$="body-hana.webp"]) .name { display: flex; }
+.stack:has(.body[src$="body-mei.webp"])  .name::after { content: "Mei"; }
+.stack:has(.body[src$="body-hana.webp"]) .name::after { content: "Hana"; }
+
+.line { margin: 0; font-size: 21px; line-height: 1.5; max-width: 62cqw; }
+
+/* ---- the opening frame --------------------------------------------------
+   Before any module exists there is no beat, so no background and no cast. A real
+   visual novel opens on a bare prompt, not a dialogue box — so on this frame only,
+   the box stops being a box. Detected by absence of a background rather than by a
+   screen class: `ask` is also the module-boundary screen, where the box IS wanted. */
+
+.stack:not(:has(.bg[src])) .box {
+  top: 50%; height: auto;
+  transform: translateY(-50%);
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: center;
+  color: rgb(38, 44, 62);            /* the stage is bare here; --ink would vanish */
+}
+.stack:not(:has(.bg[src])) .line { max-width: none; font-size: 24px; }
+.stack:not(:has(.bg[src])) .screen {
+  display: grid; align-content: center; justify-items: center; gap: 1.4cqh;
+}
+.stack:not(:has(.bg[src])) .box,
+.stack:not(:has(.bg[src])) .askbox {
+  position: static; transform: none; height: auto; width: auto;
+}
+/* The ask slot precedes the box in the template so it layers over the scene without
+   a stacking-context fight. On the opening frame both are in flow, so restore
+   reading order: question first, input under it. */
+.stack:not(:has(.bg[src])) .box    { order: 1; }
+.stack:not(:has(.bg[src])) .askbox { order: 2; }
+.stack:not(:has(.bg[src])) .askbox form { max-width: 24cqw; margin: 0 auto; }
+.stack:not(:has(.bg[src])) .askbox input {
+  color: rgb(38, 44, 62);
+  background: none;
+  border: 0; border-bottom: 1px solid rgba(38, 44, 62, 0.35);
+  border-radius: 0;
+  text-align: center;
+}
+.stack:not(:has(.bg[src])) .askbox button {
+  color: rgb(38, 44, 62);
+  background: none;
+  border: 1px solid rgba(38, 44, 62, 0.35);
+}
+.stack:not(:has(.bg[src])) .askbox button:hover { background: rgba(38, 44, 62, 0.08); }
+/* Nothing to advance to yet. */
+.stack:not(:has(.bg[src])) .controls { display: none; }
+
+/* ---- the ask ------------------------------------------------------------ */
+
+/* The ask floats in the middle of the scene, over the art, the way a visual novel
+   stages a choice menu — the dialogue box below keeps the character's closing line.
+   It is a sibling of .box, not a child, so it centres on the SCREEN rather than
+   inside the panel. */
+.askbox {
+  position: absolute;
+  left: 50%; top: 32%;
+  transform: translate(-50%, -50%);
+  /* 32%, not 50%. The sprite's top is at 10% of the stage and the face begins
+     31.35% down it, so the face starts at 10 + 0.3135*90 = 38.2%. A bar centred at
+     50% lands straight across the eyes and reads as a censor bar. 32% puts its
+     lower edge just above the face while still floating over the scene. */
+  width: 42cqw;
+  z-index: 1;
+}
+.askbox form { display: flex; gap: 0.7cqw; }
+.askbox input {
+  flex: 1; min-width: 0;
+  padding: 0.55em 0.9em;
+  font: inherit; font-size: 19px;
+  text-align: center;
+  color: var(--ink);
+  background: var(--box-bg);
+  border: 2px solid var(--box-edge);
+  border-radius: 10px;
+}
+.askbox input::placeholder { color: rgba(226, 232, 248, 0.45); }
+.askbox button {
+  padding: 0.5em 1.1em;
+  font: inherit; font-size: 18px; font-weight: 700;
+  color: var(--ink);
+  background: var(--plate-bg);
+  border: 1px solid var(--plate-edge);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.askbox button:hover { background: var(--plate-edge); }
+
+/* ---- controls ----------------------------------------------------------- */
+/* Placement was never the archetype's business. scene-sequential gives this world
+   exactly one control, and the world puts it inside the box as an arrow. The label
+   text stays in the DOM for screen readers via aria-label; font-size:0 hides it. */
+
+.controls { position: absolute; right: 1.6cqw; bottom: 1.6cqh; }
+.controls [data-control="next"] {
+  font-size: 0;
+  width: 2.2cqw; height: 2.2cqw; min-width: 22px; min-height: 22px;
+  background: none; border: 0; padding: 0;
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0.75;
+}
+.controls [data-control="next"]::after {
+  content: "";
+  display: block; width: 100%; height: 100%;
+  clip-path: polygon(28% 12%, 28% 88%, 82% 50%);
+  background: currentColor;
+  animation: vn-nudge 1.6s ease-in-out infinite;
+}
+.controls [data-control="next"]:hover { opacity: 1; }
+.controls [data-control="next"]:disabled { opacity: 0.25; cursor: default; }
+.controls [data-control="next"]:disabled::after { animation: none; }
+
+/* ---- motion -------------------------------------------------------------
+   Everything here keys on published state only: data-phase on the screen,
+   data-changed on a slot whose value differs from the previous beat. The world
+   never triggers anything and never knows a navigation happened. */
+
+@keyframes vn-box-in  { from { opacity: 0; transform: translateY(1.6cqh) } to { opacity: 1; transform: none } }
+@keyframes vn-fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes vn-enter   { from { opacity: 0; transform: translateY(1.2cqh) scale(0.995) } to { opacity: 1; transform: none } }
+@keyframes vn-nudge   { 0%, 100% { transform: translateX(0) } 50% { transform: translateX(18%) } }
+
+/* The screen only holds the box — bg and sprite were hoisted out — so animating the
+   screen animates the text alone, which is what a scene-sequential beat should do. */
+[data-phase="entering"] .box { animation: vn-box-in var(--motion-duration, 260ms) ease-out both; }
+
+/* A character swap moves the whole sprite; an expression change moves only the face.
+   The :not() guard matters: on a character swap BOTH slots carry data-changed, and
+   without it the face would animate twice, once on its own and once with its body. */
+.sprite:has(.body[data-changed]) { animation: vn-enter calc(var(--motion-duration, 260ms) * 1.15) ease-out both; }
+.sprite:not(:has(.body[data-changed])) .face[data-changed] { animation: vn-fade-in var(--motion-duration, 260ms) ease-out both; }
+
+/* Location changes are rare by design — background declares hold: "module" — so this
+   only ever runs at a module boundary, and it can afford to be slower than a beat. */
+.bg[data-changed] { animation: vn-fade-in calc(var(--motion-duration, 260ms) * 1.8) ease-out both; }
+
+/* A misconception beat is the one the student is most likely to skim. Tint the box
+   edge rather than moving anything: motion may never be the reason a beat was missed. */
+[data-kind="misconception"] .box { border-color: rgb(168, 132, 96); }
+
+@media (prefers-reduced-motion: reduce) {
+  .controls [data-control="next"]::after { animation: none; }
+}
