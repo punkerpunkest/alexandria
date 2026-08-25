@@ -557,3 +557,38 @@ fundamentals. 0 repairs throughout, console clean.
 > [!warning] Progress is position through a module, not through a session
 > The opening frame is not in a module, so it reads zero rather than showing a full bar
 > for something not yet written. `renderReadouts` checks whether any screen has beats.
+
+### Five expressions (26 Aug 2026)
+
+`explaining`, `considering`, `highlighting`, `cautioning`, `encouraging`. Three new poses
+generated from `mascot-explaining.webp` via nano_banana_2, one movement per prompt, every
+one run from the pristine original rather than from a sibling.
+
+**The monotony was never caused by `restrict`.** With two values and `considering` limited
+to misconception beats, a concept beat had exactly one legal pose — not a bad choice, no
+choice. Adding three unrestricted stances fixed it without touching the restriction, which
+stays as decided. Measured after: four distinct poses across five beats, and they land
+sensibly — `highlighting` on the constant-time takeaway, `encouraging` on the closer.
+
+**Assets are normalised to the shipped geometry, and this is not optional.** She persists
+across screens, so any change in her size or footing between poses is a visible jump. The
+content bounding box is the wrong anchor — a raised finger makes the box taller and would
+shrink her body to compensate. The anchor used instead is **the top of her hair** (a
+pose-invariant dark mass) plus the ground-plane centre of her shadow, scaling to match
+*body* height. Caught a real defect: the `encouraging` generation rendered her 6.6% smaller
+than the others. All five now land within 1px on hair top, feet and shadow centre.
+
+> [!danger] An enum value must be a token the model reliably PRODUCES
+> `emphasising` failed **every** generation with `error_max_structured_output_retries`.
+> Bisected and confirmed in both directions: two values pass, five values with
+> `emphasising` fail, the same five with `emphasizing` (z) pass. The model insists on the
+> American spelling, that string is not in the enum, and the structured-output layer
+> retries until it gives up.
+>
+> The error names nothing about enums, so this reads as a cap problem — the same misleading
+> symptom already documented for `maxLength`. Renamed to `highlighting`, which has no
+> spelling variant at all: depending on one model's preference is a fragility Alexandria
+> cannot afford when the adapter is meant to be swappable.
+>
+> Generalises: prefer enum values with no common spelling variant, no hyphen/space
+> ambiguity, and no plural/singular drift.

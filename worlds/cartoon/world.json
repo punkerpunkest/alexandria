@@ -3,7 +3,7 @@
   "_reserved": "'checkpoint' is a RESERVED beat kind. It was cut from the PoC on 23 Aug 2026 \u2014 the interactive is now the only scored object and nothing in a module gates. The name stays reserved so it is not recycled and so the vocabulary is unchanged when gating lands. Nothing generates, paginates, renders or gates it today.",
   "id": "cartoon",
   "name": "Cartoon",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "archetype": "paginated",
   "viewport": {
     "_note": "The box this world was DESIGNED AGAINST, declared as a constraint the runtime satisfies \u2014 never a size the world demands. It is the artboard, 1368x772, which is the honest answer: that is the rectangle every measurement in styles.css was derived from. Above it Cartoon is genuinely fluid and simply scales up. Below it the runtime still hands the world this box, so its container units resolve exactly as verified, and scales the whole result down to fit.",
@@ -59,20 +59,27 @@
       "set": "mascot",
       "values": [
         "explaining",
-        "considering"
+        "considering",
+        "highlighting",
+        "cautioning",
+        "encouraging"
       ],
       "restrict": {
         "considering": "misconception"
       },
       "job": "The teacher's pose.",
       "opening": "explaining",
-      "_opening_note": "Stage 0 paints before any model call, so there is no beat to take a pose from. A channel that appears on the opening frame must declare what it shows there."
+      "_opening_note": "Stage 0 paints before any model call, so there is no beat to take a pose from. A channel that appears on the opening frame must declare what it shows there.",
+      "_naming_note": "An enum value must be a token the model reliably PRODUCES. 'emphasising' failed every generation with error_max_structured_output_retries because the model insists on the American 'emphasizing', which is not in the enum; bisected and confirmed both ways. Prefer values with no common spelling variant over depending on one model's preference \u2014 the adapter is meant to be swappable."
     }
   },
   "assets": {
     "mascot": {
-      "explaining": "open-handed, mid-explanation, warm. The default for a concept beat.",
-      "considering": "hand to chin, weighing something up. Use on a misconception beat, where the point is that this is the tricky part."
+      "explaining": "open-handed, mid-explanation, warm. The everyday pose.",
+      "considering": "hand to chin, weighing something up. Use where the point is that this is the tricky part.",
+      "highlighting": "one finger raised. Use for the single sentence in this module most worth remembering.",
+      "cautioning": "palm raised toward the student. Use before a step that needs care, or where people commonly slip.",
+      "encouraging": "a thumbs up. Use when something has just landed, or the student is past the hard part."
     }
   },
   "assetFormat": {
