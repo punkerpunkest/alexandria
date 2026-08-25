@@ -467,3 +467,93 @@ Three bugs found while building this, all worth remembering:
 `assertLayoutFits()` now runs after every render and warns when a filled slot overlaps a
 live control or leaves the panel. It caught a genuine collision on real generated content
 the first time it ran, before any synthetic test was written.
+
+### Session memory, and a restriction kept on purpose (25 Aug 2026)
+
+**The `history` array is gone.** `server.js` used to accumulate one headline per module
+and inject "the student has already been taught X | Y | Z, do not repeat those beats" into
+every later request. It was a lossy duplicate of context the model already had — the
+adapter is one long-lived process, so prior modules are simply in the conversation — and
+it had lost its scoping three ways at once: it spanned unrelated topics, it grew without
+bound, and it recorded only the FIRST beat of each module while forbidding "those beats"
+wholesale.
+
+Measured before: a follow-up dropped from 4 beats to 3 and from ~10s to under 4s, because
+the model had been told there was less left to say. Measured after: four questions in one
+session — three unrelated plus one follow-up — all returned full 5-beat modules, with cache
+reads climbing from 0 to ~16k tokens as the conversation was reused.
+
+**Session memory is the conversation, and nothing else.** Verified: a bare "Give me one
+more example of that", naming no topic, resolved against a recursion module three questions
+earlier and built on it (memoization, when recursion is the wrong call) rather than
+re-teaching the basics. That is strictly better than the array managed, because it is the
+whole module rather than one headline.
+
+Known limit, accepted for the PoC: the process *is* the session, so context grows without
+bound and there is no way to start a fresh one except restarting the server. Session
+boundaries are a real design question, deferred.
+
+> [!important] `restrict` stays — the determinism is a DECISION, not a defect
+> `expression.restrict` makes `considering` legal only on a misconception beat. Combined
+> with the model reliably writing exactly one misconception per module, this makes the pose
+> sequence a **deterministic function of the kind sequence**: one thinking sprite, once,
+> wherever that beat lands. That was measured after Jordan noticed it, and it is being
+> **kept for the proof of concept** (Jordan's call, 25 Aug).
+>
+> Do not "fix" this. Removing the restriction is a one-line manifest edit and it is
+> deliberately not being made. The eventual answer is decision 3 from the expression-name
+> options: stance names, three or four values, restricting at most one — which needs art
+> and is therefore post-PoC.
+>
+> Note that the misconception beat no longer *depends* on the pose to read as special:
+> `data-kind="misconception"` gives it the `cartoon-settle` entrance instead of a slide, so
+> it is visually distinct before the pose registers at all.
+
+### The ask screen (25 Aug 2026)
+
+The boundary now has its own screen, and the same template serves cold-start stage 0.
+
+**Why it is not a beat.** Every beat must satisfy one schema, and `mascot_line` declares
+`mustBeClaim` — which a question fails by definition. So the ask line is a **module-level
+channel**: it sits beside `beats` in the response rather than inside one. New manifest
+concept, `world.module.channels`, mirrored in `schema.js` and `validate.js`. It carries
+`mustAsk`, the mirror of `mustBeClaim`.
+
+**Why the opening frame is not generated.** `Alexandria - Cold Start` stage 0 is "painted
+locally with no model call at all" and never blocks; stage 2, the first half-module, is
+"the only real wait in the product". A generated opening would move stage 0 inside stage 2
+and delay first value, breaking the invariant everything else serves. So the session-start
+line comes from the manifest (`ask_line.opening`), and any beat channel appearing on that
+frame must declare an opening value too — `expression.opening` is `explaining`, because
+there is no beat to take a pose from before the first module exists.
+
+**Two contexts, one template.** `screens/ask.html` renders both the module's closing
+screen and the opening frame. The only difference is where the line comes from.
+
+Runtime pieces added:
+
+- `pagination.closeWith` names the screen type appended after the last beat, carrying no
+  beat and `fill` = the module's own values.
+- Screens now carry `fill` — the beat for a beat screen, the module values for a beatless
+  one — so the projector never asks which kind it is holding.
+- **A slot the fill does not mention keeps its current value.** This is what lets the
+  beatless ask screen inherit the persisted teacher's pose instead of blanking her `src`
+  to `mascot-undefined.webp`, which is exactly what the first build did.
+- `data-slot="ask"` receives a runtime-built input and submit. The world owns only where
+  it sits; the runtime owns focus and submit, forced, since a world ships no JavaScript.
+- The chrome's ask box is gone. `index.html` has an empty `#stage` — the world wraps the
+  ask, per `Alexandria - Design`, and the chrome was contradicting that.
+- Generating no longer blanks the stage. The world stays painted and `.stack` gets
+  `data-busy`; blanking to a spinner would discard stage 0 at the moment it matters.
+
+**Verified end to end.** Opening frame paints with no model call. A question generates a
+4-beat module → 5 screens, progress 0.2 → 1, Continue hidden on the boundary, back kept.
+The ask line references what was taught — "Now you know how the microphone erases noise.
+What would you like to explore next?" — confirming it is emitted *after* the beats, which
+mattered because schema order is not emission order. Submitting from the boundary loops
+back to a fresh module, and a clarification request was answered by going back to
+fundamentals. 0 repairs throughout, console clean.
+
+> [!warning] Progress is position through a module, not through a session
+> The opening frame is not in a module, so it reads zero rather than showing a full bar
+> for something not yet written. `renderReadouts` checks whether any screen has beats.

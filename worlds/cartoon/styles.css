@@ -323,3 +323,70 @@
 
 /* prefers-reduced-motion is handled by the runtime's presets sheet and by
    --motion-duration collapsing to 0. A world should not have to remember it. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE ASK SCREEN
+   The boundary. Same cast, same geometry — she is mid-conversation, not
+   somewhere new — but the body card is replaced by the input. The runtime owns
+   the input itself; this file owns only where it sits and what it looks like.
+   One template serves two contexts: the module's closing screen, and stage 0 of
+   the cold start, where her line comes from the manifest instead of the model.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.askbox { display: block; }
+.askbox form {
+  display: flex;
+  gap: calc(12px * var(--box));
+  align-items: stretch;
+}
+.askbox [data-ask='input'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: calc(24px * var(--box)) calc(28px * var(--box));
+  border: 2px solid var(--line);
+  border-radius: calc(16px * var(--box));
+  background: var(--paper);
+  font-family: inherit;
+  font-size: calc(21px * var(--box));
+  line-height: calc(30px * var(--box));
+  color: var(--ink);
+  outline: none;
+  transition: border-color .18s ease-out, box-shadow .18s ease-out;
+}
+.askbox [data-ask='input']::placeholder { color: var(--hare); }
+.askbox [data-ask='input']:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(88, 204, 2, .18);
+}
+.askbox [data-ask='submit'] {
+  flex: 0 0 auto;
+  min-width: calc(120px * var(--scale));
+  padding: 0 calc(24px * var(--scale));
+  border: 0;
+  border-radius: calc(16px * var(--box));
+  background: var(--green);
+  box-shadow: 0 5px 0 var(--green-deep);
+  color: #fff;
+  font-family: inherit;
+  font-size: calc(19px * var(--scale));
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color .2s ease-out, box-shadow .12s ease-out, transform .12s ease-out;
+}
+.askbox [data-ask='submit']:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--green-deep);
+}
+
+/* The boundary has no forward control — answering IS the forward action. Back
+   stays, so the student can re-read what they just finished. */
+.screen.ask ~ * [data-control='next'],
+.stack:has(.screen.ask) [data-control='next'] { display: none; }
+
+/* While a module generates, the world stays on screen (cold start stage 0 never
+   blanks). The input stands down rather than the stage going empty. */
+.stack[data-busy] .askbox [data-ask='input'] { opacity: .5; pointer-events: none; }
+.stack[data-busy] .askbox [data-ask='submit'] { opacity: .5; pointer-events: none; }

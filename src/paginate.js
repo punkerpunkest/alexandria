@@ -18,7 +18,7 @@ const POLICIES = {
   'one-beat-per-screen': 1,
 };
 
-export function paginate(world, beats) {
+export function paginate(world, beats, module = {}) {
   const p = world.pagination ?? {};
   if (!(p.policy in POLICIES)) {
     throw new Error(
@@ -44,7 +44,23 @@ export function paginate(world, beats) {
         `which is not declared in world.screens`);
     }
 
-    screens.push({ type, beats: [beat] });
+    // `fill` is what the projector reads slots from. For a beat screen it is the
+    // beat; for a beatless screen it is the module's own values. Unifying them here
+    // means the projector never has to ask which kind of screen it is holding.
+    screens.push({ type, beats: [beat], fill: beat });
+  }
+
+  // The boundary screen. Not a beat: it carries the module's own channels, it is
+  // where the ask lands, and the loop does not run without it — see
+  // `Alexandria - PoC Flow`, "Asking happens at the boundary".
+  const close = p.closeWith;
+  if (close) {
+    if (!world.screens?.[close]) {
+      throw new Error(
+        `world "${world.id}": pagination.closeWith names screen type "${close}", ` +
+        `which is not declared in world.screens`);
+    }
+    screens.push({ type: close, beats: [], fill: module });
   }
   return screens;
 }

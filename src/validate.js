@@ -36,6 +36,17 @@ export function validate(world, out) {
         }
       }
 
+      // Cross-channel agreement, declared per channel so no channel name lands here.
+      // The flat asset resolver is `{set}-{name}`, so a per-character face set has to
+      // encode the character in its own value; this keeps the two from disagreeing.
+      if (ch.prefixedBy && v != null) {
+        const owner = b[ch.prefixedBy];
+        if (owner != null && !String(v).startsWith(`${owner}-`)) {
+          failures.push({ beat: i, field: name,
+            reason: `"${v}" does not belong to ${ch.prefixedBy} "${owner}"; it must start "${owner}-"` });
+        }
+      }
+
       // Manifest-declared restrictions: { "considering": "misconception" }.
       const kindFor = ch.restrict?.[v];
       if (kindFor && b.kind !== kindFor) {
@@ -66,6 +77,24 @@ export function validate(world, out) {
         });
       }
     });
+  }
+
+  // MODULE-LEVEL CHANNELS. Same rules, different scope: these sit beside `beats`
+  // rather than inside one, so they are checked against `out` rather than a beat.
+  for (const [name, ch] of Object.entries(world.module?.channels ?? {})) {
+    const v = out[name];
+    if (v == null || (typeof v === 'string' && !v.trim())) {
+      failures.push({ scope: 'module', reason: `${name} is missing` });
+      continue;
+    }
+    if (ch.kind === 'text' && ch.maxLength && v.length > ch.maxLength) {
+      failures.push({ scope: 'module', reason: `${name} is ${v.length} chars, cap is ${ch.maxLength}` });
+    }
+    // The mirror of mustBeClaim. The ask line's whole job is to hand the turn back
+    // to the student, and a statement does not do that.
+    if (ch.mustAsk && typeof v === 'string' && !v.trim().endsWith('?')) {
+      failures.push({ scope: 'module', reason: `${name} must end in a question` });
+    }
   }
 
   // Coverage: the world declares beat kinds it must always receive.

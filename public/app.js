@@ -29,6 +29,16 @@ const ARCHETYPES = {
     },
     readouts: ['progress'],
   },
+  // Forward only. No back control exists at all -- not hidden, not disabled, absent.
+  // A world that wants an arrow inside its dialogue box places data-slot="controls"
+  // there and dresses [data-control="next"]; placement was never the archetype's business.
+  'scene-sequential': {
+    controls: {
+      next: { required: true, label: 'Continue', aria: 'Continue', step: +1,
+              disabled: (at, count) => at >= count - 1 },
+    },
+    readouts: ['progress'],
+  },
 };
 
 // The world declares a duration, the runtime clamps and scales it. The clamp is
@@ -41,7 +51,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
 let world, templates, presetCss, host, root, stack;
 let screens = [], at = 0, prev = null;
-let current = null, leaving = null, panelWatcher = null;
+let current = null, leaving = null, panelWatcher = null, busy = false;
 let persisted = new Map();          // data-persist key -> the one live node
 
 const res = await fetch('/api/world').then((r) => r.json());
@@ -165,6 +175,9 @@ function el(html) {
   return t.content.firstElementChild;
 }
 
+// Beat channels and module channels are both channels; only their scope differs.
+const channelFor = (key) => world.channels[key] ?? world.module?.channels?.[key];
+
 function assetUrl(set, name) {
   const ext = world.assetFormat?.[set] ?? 'svg';
   return `/worlds/${world.id}/assets/${set}-${name}.${ext}`;
@@ -210,13 +223,45 @@ function hoist(node) {
   }
 }
 
-function fill(scopes, beat) {
+function fill(scopes, values) {
   for (const slot of across(scopes, 'data-slot')) {
     const key = slot.dataset.slot;
-    if (key === 'controls') continue;                   // runtime-owned, filled below
-    const ch = world.channels[key];
-    if (ch?.set) slot.src = assetUrl(ch.set, beat[key]);
-    else slot.textContent = beat[key] ?? '';
+    if (key === 'controls' || key === 'ask') continue;   // runtime-owned, filled below
+    // A slot the fill does not mention KEEPS its current value. This is what lets a
+    // beatless screen inherit the persisted teacher's pose rather than blanking her
+    // src to `mascot-undefined.webp`.
+    if (!(key in values)) continue;
+    const ch = channelFor(key);
+    if (ch?.set) slot.src = assetUrl(ch.set, values[key]);
+    else slot.textContent = values[key] ?? '';
+  }
+}
+
+// The ask. The runtime owns the input, focus and submit — forced, since a world ships
+// no JavaScript and cannot implement one. The world owns only where it appears and
+// what it is. See `Alexandria - Design`, "The ask — a world slot, not chrome furniture".
+function renderAsk(scopes) {
+  for (const slot of across(scopes, 'data-slot')) {
+    if (slot.dataset.slot !== 'ask' || slot.dataset.built) continue;
+    slot.dataset.built = '1';
+    const form = document.createElement('form');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.dataset.ask = 'input';
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', 'What do you want next?');
+    const go = document.createElement('button');
+    go.type = 'submit';
+    go.dataset.ask = 'submit';
+    go.textContent = 'Go';
+    form.append(input, go);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (q) askFor(q);
+    });
+    slot.replaceChildren(form);
+    requestAnimationFrame(() => input.focus());
   }
 }
 
@@ -244,8 +289,12 @@ function renderControls(scopes) {
 // Persisting the element is what lets a world TRANSITION the value rather than
 // jump it — on a fresh node there is no previous value to interpolate from.
 function renderReadouts(scopes) {
+  // Progress is position through a module. The opening frame is not in one, so it
+  // reads zero rather than a full bar for a module that has not been written yet.
+  const hasModule = screens.some((s) => s.beats.length);
+  const value = hasModule ? (at + 1) / screens.length : 0;
   for (const r of across(scopes, 'data-readout')) {
-    if (r.dataset.readout === 'progress') r.style.setProperty('--progress', String((at + 1) / screens.length));
+    if (r.dataset.readout === 'progress') r.style.setProperty('--progress', String(value));
   }
 }
 
@@ -259,10 +308,10 @@ function syncControls(scopes) {
 }
 
 // Everything the world's CSS is able to hear. Nothing here names a world.
-function publish(node, beat, nav, scopes) {
+function publish(node, values, nav, scopes) {
   node.dataset.phase = 'entering';
   node.dataset.nav = nav;
-  if (beat.kind) node.dataset.kind = beat.kind;
+  if (values.kind) node.dataset.kind = values.kind; else delete node.dataset.kind;
 
   // Set on the stack, not the screen, so hoisted SIBLINGS inherit it too;
   // screens inherit it either way.
@@ -278,11 +327,12 @@ function publish(node, beat, nav, scopes) {
   if (prev) {
     for (const s of slots) {
       const key = s.dataset.slot;
-      if (key === 'controls' || !(key in world.channels)) continue;
+      if (key === 'controls' || key === 'ask' || !channelFor(key)) continue;
+      if (!(key in values)) continue;             // unmentioned slots did not change
       // Previous SCREEN's beat vs this screen's. Stays correct if a beat is ever
       // allowed to span several screens: the same beat differs from itself in
       // nothing, so nothing is marked, which is the right answer.
-      if (prev[key] !== beat[key]) s.setAttribute('data-changed', '');
+      if (prev[key] !== values[key]) s.setAttribute('data-changed', '');
     }
   }
 
@@ -333,24 +383,25 @@ function retire(node, nav) {
 
 function render(nav = 'forward') {
   const screen = screens[at];
-  const beat = screen.beats[0];
+  const values = screen.fill ?? screen.beats[0] ?? {};
   const node = el(templates[screen.type]);
 
   hoist(node);                                  // before the node is ever in the DOM
   const scopes = [node, ...persisted.values()];
 
-  fill(scopes, beat);
+  fill(scopes, values);
   renderControls(scopes);
+  renderAsk(scopes);
   renderReadouts(scopes);
 
   if (leaving) { leaving.remove(); leaving = null; }   // interruption is always the runtime's
   if (current) retire(current, nav);
 
   stack.append(node);
-  publish(node, beat, nav, scopes);
+  publish(node, values, nav, scopes);
   current = node;
   syncControls(scopes);
-  prev = beat;
+  prev = values;
 
   $('#progress').textContent = `${at + 1} / ${screens.length}`;
   $('#back').disabled = at === 0;
@@ -424,29 +475,62 @@ function go(delta) {
   render(delta < 0 ? 'back' : 'forward');
 }
 
-$('#askform').onsubmit = async (e) => {
-  e.preventDefault();
-  const question = $('#q').value.trim();
-  if (!question) return;
-  stage.innerHTML = '<div class="thinking">writing the module…</div>';
+// Every path to a new module goes through here: the world's ask input, and nothing
+// else. The chrome no longer hosts an ask — see `Alexandria - Design`.
+async function askFor(question) {
+  if (busy) return;
+  busy = true;
+  setStatus('writing the module…');
+  // The world stays on screen while this runs. `Alexandria - Cold Start` stage 0 is
+  // "never blocks" and "painted locally with no model call at all"; blanking the
+  // stage to a spinner would throw that away at exactly the moment it matters.
+  stack?.setAttribute('data-busy', '');
+
   const t0 = performance.now();
   const data = await fetch('/api/module', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ question }),
-  }).then((r) => r.json());
+  }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
+
+  busy = false;
+  stack?.removeAttribute('data-busy');
+  if (!data?.screens) { setStatus(`generation failed: ${data?.error ?? 'unknown'}`); return; }
 
   screens = data.screens; at = 0; prev = null;
   mount(); render('forward');
 
   const m = data.metrics;
-  $('#metrics').textContent =
+  setStatus(
     `startup ${m.startupMs}ms · auth ${m.apiKeySource} · ttft ${m.ttftMs}ms\n` +
     `wall ${m.wallMs}ms · repairs ${m.repairs} · $${m.costUsd} · cache ${m.cacheReadTokens ?? 0}tok\n` +
     `${m.beats} beats · reading ~${Math.round(m.readingTimeMs / 1000)}s vs generation ${Math.round(m.wallMs / 1000)}s` +
     (m.readingTimeMs > m.wallMs ? '  COVERED' : '  NOT COVERED') +
-    (data.degraded ? '\nDEGRADED: validation still failing, the plain world would take over' : '');
+    (data.degraded ? '\nDEGRADED: validation still failing, the plain world would take over' : ''));
   console.log('round trip incl. network', Math.round(performance.now() - t0), 'ms', data);
-};
+}
+
+const setStatus = (t) => { $('#metrics').textContent = t; };
+
+// STAGE 0 of the cold start: the world's opening frame, painted locally with no model
+// call at all. It is the same screen type the module closes with — one template, two
+// contexts — and its line comes from the manifest rather than the model, because at
+// session start there is no module to generate one from.
+function openingFrame() {
+  const type = world.pagination?.closeWith;
+  if (!type || !templates[type]) return false;
+  // Any channel that appears on the opening frame must declare what it shows there,
+  // because stage 0 paints before a beat exists to take a value from.
+  const fill = {};
+  for (const ch of [world.channels, world.module?.channels ?? {}])
+    for (const [name, def] of Object.entries(ch))
+      if (def.opening != null) fill[name] = def.opening;
+  screens = [{ type, beats: [], fill }];
+  at = 0; prev = null;
+  mount(); render('forward');
+  return true;
+}
+
+if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint at stage 0');
 
 $('#next').onclick = () => go(+1);
 $('#back').onclick = () => go(-1);

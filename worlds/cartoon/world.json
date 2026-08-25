@@ -3,7 +3,7 @@
   "_reserved": "'checkpoint' is a RESERVED beat kind. It was cut from the PoC on 23 Aug 2026 \u2014 the interactive is now the only scored object and nothing in a module gates. The name stays reserved so it is not recycled and so the vocabulary is unchanged when gating lands. Nothing generates, paginates, renders or gates it today.",
   "id": "cartoon",
   "name": "Cartoon",
-  "version": "0.5.2",
+  "version": "0.6.2",
   "archetype": "paginated",
   "viewport": {
     "_note": "The box this world was DESIGNED AGAINST, declared as a constraint the runtime satisfies \u2014 never a size the world demands. It is the artboard, 1368x772, which is the honest answer: that is the rectangle every measurement in styles.css was derived from. Above it Cartoon is genuinely fluid and simply scales up. Below it the runtime still hands the world this box, so its container units resolve exactly as verified, and scales the whole result down to fit.",
@@ -25,7 +25,8 @@
     "policy": "one-beat-per-screen",
     "screenFor": {
       "default": "module"
-    }
+    },
+    "closeWith": "ask"
   },
   "voice": {
     "person": "second person, talking straight to the student",
@@ -63,7 +64,9 @@
       "restrict": {
         "considering": "misconception"
       },
-      "job": "The teacher's pose."
+      "job": "The teacher's pose.",
+      "opening": "explaining",
+      "_opening_note": "Stage 0 paints before any model call, so there is no beat to take a pose from. A channel that appears on the opening frame must declare what it shows there."
     }
   },
   "assets": {
@@ -80,6 +83,19 @@
     "duration": 280
   },
   "screens": {
-    "module": "screens/module.html"
+    "module": "screens/module.html",
+    "ask": "screens/ask.html"
+  },
+  "module": {
+    "_note": "Channels that belong to the module rather than to a beat. A beat is one screen of teaching; these are values the module carries as a whole. The ask screen needs one, and it cannot be a beat: every beat must satisfy the same schema, and `mascot_line` declares mustBeClaim, which a question fails by definition.",
+    "channels": {
+      "ask_line": {
+        "kind": "text",
+        "maxLength": 90,
+        "job": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question.",
+        "mustAsk": true,
+        "opening": "What do you want to learn today?"
+      }
+    }
   }
 }

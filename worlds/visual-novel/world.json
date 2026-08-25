@@ -1,0 +1,122 @@
+{
+  "_note": "Scene-sequential world. One speaker on stage at a time, centred and bottom-anchored. Sprites are split base + face overlay; see README.md.",
+  "id": "visual-novel",
+  "name": "Visual Novel",
+  "version": "0.1.0",
+  "archetype": "scene-sequential",
+  "beats": {
+    "min": 3,
+    "max": 6,
+    "kinds": [
+      "concept",
+      "misconception"
+    ]
+  },
+  "pagination": {
+    "policy": "one-beat-per-screen",
+    "screenFor": {
+      "default": "scene"
+    },
+    "closeWith": "ask"
+  },
+  "voice": {
+    "person": "the characters talk to each other, and to the student, who is present in the scene as a silent third classmate",
+    "register": "two classmates working something out. Plain, curious, a little wry.",
+    "forbidden": [
+      "narration or stage directions; only spoken lines",
+      "any mention of being a model, an assistant, or generating anything",
+      "naming the speaker inside the line; the nameplate already does that"
+    ],
+    "samples": [
+      "So the tree stores a range in every node. That is the whole trick.",
+      "Wait. Then a query never touches more than log n of them?",
+      "That is the part everyone gets backwards, so do not feel bad about it."
+    ]
+  },
+  "channels": {
+    "line": {
+      "kind": "text",
+      "maxLength": 180,
+      "job": "One spoken line. What this character says on this beat. No quotation marks, no speaker name."
+    },
+    "speaker_body": {
+      "kind": "asset",
+      "set": "body",
+      "job": "Who is speaking. Alternate between them; a stretch of the same speaker reads as a monologue."
+    },
+    "speaker_face": {
+      "kind": "asset",
+      "set": "face",
+      "prefixedBy": "speaker_body",
+      "job": "The speaker's expression. MUST begin with the same name as speaker_body."
+    },
+    "background": {
+      "kind": "asset",
+      "set": "background",
+      "hold": "module",
+      "job": "Where the scene takes place. Chosen once for the module."
+    }
+  },
+  "assets": {
+    "body": {
+      "mei": "Mei, hime cut, brown hair, navy seifuku, round glasses. She explains and is usually right.",
+      "hana": "Hana, twin tails, dark hair, white seifuku. She asks, guesses, and is often wrong first."
+    },
+    "face": {
+      "mei-normal": "Mei: level and attentive. The default for a plain explanation.",
+      "mei-smile": "Mei: a small closed smile, warm and unhurried.",
+      "mei-smile-2": "Mei: eyes closed, gently pleased. Use when something has just landed.",
+      "mei-laugh": "Mei: eyes closed, open-mouthed, delighted.",
+      "mei-delighted": "Mei: bright and open-mouthed, genuinely excited by the idea.",
+      "mei-shocked": "Mei: wide eyes, mouth open. Use when a result is genuinely surprising.",
+      "mei-sad": "Mei: downcast brows, quiet. Use when an approach did not work.",
+      "mei-angry": "Mei: brows down, mouth open. Rare, and only for a firm correction.",
+      "mei-smug": "Mei: one brow up, a small knowing smile. Use when the answer was obvious in hindsight.",
+      "mei-annoyed": "Mei: flat eyes, unimpressed. Use for a mistake that keeps coming back.",
+      "mei-sleepy": "Mei: heavy lids. Use sparingly, for a long or dry stretch.",
+      "hana-normal": "Hana: level and attentive. The default for a plain explanation.",
+      "hana-smile": "Hana: a small closed smile, warm and unhurried.",
+      "hana-smile-2": "Hana: eyes closed, gently pleased. Use when something has just landed.",
+      "hana-laugh": "Hana: eyes closed, open-mouthed, delighted.",
+      "hana-delighted": "Hana: bright and open-mouthed, genuinely excited by the idea.",
+      "hana-shocked": "Hana: wide eyes, mouth open. Use when a result is genuinely surprising.",
+      "hana-sad": "Hana: downcast brows, quiet. Use when an approach did not work.",
+      "hana-angry": "Hana: brows down, mouth open. Rare, and only for a firm correction.",
+      "hana-smug": "Hana: one brow up, a small knowing smile. Use when the answer was obvious in hindsight.",
+      "hana-annoyed": "Hana: flat eyes, unimpressed. Use for a mistake that keeps coming back.",
+      "hana-sleepy": "Hana: heavy lids. Use sparingly, for a long or dry stretch."
+    },
+    "background": {
+      "classroom-day": "an empty classroom in daylight, desks in rows. The default setting.",
+      "library": "a wide school library with tall windows. For research, reading, quiet work.",
+      "corridor-morning": "a school corridor in morning light. For short scenes and asides.",
+      "school-gate": "the school entrance, trees and open sky. For beginnings and endings.",
+      "basketball-court": "an indoor court. For anything physical, competitive, or about movement."
+    }
+  },
+  "assetFormat": {
+    "body": "webp",
+    "face": "webp",
+    "background": "webp"
+  },
+  "motion": {
+    "_note": "The world declares; the runtime clamps to 600ms and scales by the speed setting.",
+    "duration": 260
+  },
+  "screens": {
+    "scene": "screens/scene.html",
+    "ask": "screens/ask.html"
+  },
+  "module": {
+    "_note": "Channels belonging to the module rather than a beat. The ask screen needs one. In this world the student is a character in the scene, so a line addressed to them is in-fiction rather than a break in it.",
+    "channels": {
+      "ask_line": {
+        "kind": "text",
+        "maxLength": 110,
+        "job": "The closing line, spoken to the student after the last beat. Land what was just worked out, then ask where they want to go next. It must end in a question.",
+        "mustAsk": true,
+        "opening": "So, what are we working on today?"
+      }
+    }
+  }
+}

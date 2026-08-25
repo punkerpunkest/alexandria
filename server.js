@@ -20,13 +20,18 @@ const gen = new Generator({
 }).start();
 
 const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
-const history = [];
 
+// SESSION MEMORY IS THE CONVERSATION, and nothing else.
+// This used to also accumulate a `history` array and inject "the student has
+// already been taught X | Y | Z, do not repeat those beats" into every request.
+// It was a lossy duplicate of context the model already had — the adapter is one
+// long-lived process, so prior modules are simply in the conversation — and it had
+// lost its scoping three ways: it spanned unrelated topics, it grew without bound,
+// and it only ever recorded the FIRST beat of each module while forbidding "those
+// beats" wholesale. Measured effect: a follow-up dropped from 4 beats to 3 and from
+// ~10s to under 4s, because the model had been told there was less left to say.
 function askPrompt(question) {
-  const prior = history.length
-    ? `\nThe student has already been taught: ${history.join(' | ')}.\nDo not repeat those beats.\n`
-    : '\n';
-  return `The student asks: "${question}"${prior}Write the module that answers it.`;
+  return `The student asks: "${question}"\nWrite the module that answers it.`;
 }
 
 async function buildModule(question) {
@@ -45,12 +50,9 @@ async function buildModule(question) {
 
   const beats = res.data?.beats ?? [];
   const degraded = failures.length > 0;          // the plain world would take over here
-  // The headline channel is whichever text channel the world declares first.
-  const headline = Object.entries(world.channels).find(([, ch]) => ch.kind === 'text')?.[0];
-  if (beats.length && headline) history.push(beats[0][headline]);
 
   return {
-    screens: paginate(world, beats),
+    screens: paginate(world, beats, res.data ?? {}),
     degraded,
     remainingFailures: failures,
     metrics: {

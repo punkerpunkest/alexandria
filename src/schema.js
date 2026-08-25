@@ -8,6 +8,18 @@
 const describeSet = (job, set) =>
   job + ' Options: ' + Object.entries(set).map(([k, v]) => `${k} = ${v}`).join('; ');
 
+// One channel -> one JSON Schema property. Shared by beat channels and module
+// channels, so a world that moves a channel between the two needs no change here.
+function property(world, name, ch) {
+  const set = ch.set ? world.assets[ch.set] : null;
+  if (ch.kind === 'text') return { type: 'string', maxLength: ch.maxLength, description: ch.job };
+  if (ch.kind === 'enum' || ch.kind === 'asset') {
+    const values = ch.values ?? Object.keys(set ?? {});
+    return { type: 'string', enum: values, description: set ? describeSet(ch.job, set) : ch.job };
+  }
+  throw new Error(`world "${world.id}": channel "${name}" has unknown kind "${ch.kind}"`);
+}
+
 export function buildSchema(world) {
   const properties = {
     kind: {
@@ -19,33 +31,24 @@ export function buildSchema(world) {
   const required = ['kind'];
 
   for (const [name, ch] of Object.entries(world.channels)) {
-    const set = ch.set ? world.assets[ch.set] : null;
-
-    if (ch.kind === 'text') {
-      properties[name] = { type: 'string', maxLength: ch.maxLength, description: ch.job };
-    } else if (ch.kind === 'enum' || ch.kind === 'asset') {
-      const values = ch.values ?? Object.keys(set ?? {});
-      properties[name] = {
-        type: 'string',
-        enum: values,
-        description: set ? describeSet(ch.job, set) : ch.job,
-      };
-    } else {
-      throw new Error(`world "${world.id}": channel "${name}" has unknown kind "${ch.kind}"`);
-    }
+    properties[name] = property(world, name, ch);
     required.push(name);
   }
 
   const beat = { type: 'object', additionalProperties: false, properties, required };
 
-  return {
-    type: 'object',
-    additionalProperties: false,
-    properties: {
-      beats: { type: 'array', minItems: world.beats.min, maxItems: world.beats.max, items: beat },
-    },
-    required: ['beats'],
-  };
+  // MODULE-LEVEL CHANNELS sit beside `beats`, not inside a beat. They exist because
+  // some screens are not beats: the ask screen carries one line for the whole module,
+  // and it could never be a beat, since every beat must satisfy the same schema and
+  // `mascot_line` declares mustBeClaim — which a question fails by definition.
+  const top = { beats: { type: 'array', minItems: world.beats.min, maxItems: world.beats.max, items: beat } };
+  const topRequired = ['beats'];
+  for (const [name, ch] of Object.entries(world.module?.channels ?? {})) {
+    top[name] = property(world, name, ch);
+    topRequired.push(name);
+  }
+
+  return { type: 'object', additionalProperties: false, properties: top, required: topRequired };
 }
 
 // The prompt preamble. Identical every turn, so it caches.
@@ -54,7 +57,7 @@ export function buildSystemPrompt(world) {
 
   // Channel restrictions are declared in the manifest, so they steer the model
   // here and are enforced in the validator from the same source.
-  const restrictions = Object.entries(world.channels).flatMap(([name, ch]) =>
+  const restrictions = Object.entries({ ...world.channels, ...(world.module?.channels ?? {}) }).flatMap(([name, ch]) =>
     Object.entries(ch.restrict ?? {}).map(
       ([value, kind]) => `- ${name} may only be "${value}" on a ${kind} beat.`));
 

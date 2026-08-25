@@ -1,4 +1,4 @@
-# VN world assets — cast and backgrounds
+# Visual Novel — world package
 
 Exported 24 Aug 2026 from `Female Sprite by Sutemo.psd` (free pack, personal + commercial
 use, editable) and `~/Downloads/pack1/School/Chosen`.
@@ -14,9 +14,14 @@ This is safe because the PSD draw order is:
 of hair style, hair colour and costume. Verified: reassembling base + overlay matches a
 full PSD composite to a max channel difference of 2/255.
 
-    cast/<who>/base.webp          identity: hair + costume + body. Never changes mid-scene.
-    cast/<who>/face-<expr>.webp   the only thing a beat varies.
-    backgrounds/<slug>.webp
+    assets/body-<who>.webp             identity: hair + costume + body. Never changes mid-scene.
+    assets/face-<who>-<expr>.webp      the only thing a beat varies.
+    assets/background-<slug>.webp
+
+Flat, because the projector resolves `/worlds/{id}/assets/{set}-{name}.{ext}` and has no
+path convention. That is why the face value carries the character (`mei-smug`) rather than
+living in a per-character folder — and why `speaker_face` declares `prefixedBy:
+"speaker_body"`, so the validator rejects Hana's face on Mei's body.
 
 Accessories draw *above* Expression, so Mei's circle glasses are baked into her face
 overlays rather than her base. That is why her overlays are larger than Hana's.
