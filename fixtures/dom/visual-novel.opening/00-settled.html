@@ -1,0 +1,25 @@
+<div class="stack" style="--motion-duration: 260ms">
+  <img class="bg" data-persist="bg" data-slot="background" alt="">
+  <div class="sprite" data-persist="sprite">
+        <img class="body" data-slot="speaker_body" alt="">
+        <img class="face" data-slot="speaker_face" alt="">
+      </div>
+    <section class="screen ask" data-phase="settled" data-nav="forward">
+        
+        
+        <div class="askbox" data-slot="ask" data-built="1">
+      <form>
+        <input type="text" data-ask="input" autocomplete="off" aria-label="What do you want next?">
+        <button type="submit" data-ask="submit">Go</button>
+      </form>
+    </div>
+      <div class="box">
+        <p class="name">
+  </p>
+      <p class="line" data-slot="ask_line">So, what are we working on today?</p>
+      <nav class="controls" data-slot="controls" data-built="1">
+  <button type="button" data-control="next" aria-label="Continue" disabled="">Continue</button>
+</nav>
+  </div>
+</section>
+</div>
