@@ -1,0 +1,14 @@
+<!-- One section of the article. The rail is declared here and on every other section,
+     but `data-persist` means the projector hoists the FIRST one onto the stack and
+     drops the rest, so it survives as one element above a scroller full of sections.
+
+     The note and the figure are OPTIONAL channels: when the model omits one, the
+     projector leaves the element empty and the stylesheet's `:empty` rule takes it out
+     of the layout. That is why neither element may contain whitespace — a single space
+     is a text node, and `:empty` would stop matching. -->
+<section class="section">
+  <div class="rail" data-persist="rail" data-readout="progress"><i class="rail-fill"></i></div>
+  <p class="prose" data-slot="prose"></p>
+  <aside class="note" data-slot="note"></aside>
+  <figure class="figure" data-slot="figure"></figure>
+</section>

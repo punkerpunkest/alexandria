@@ -5,6 +5,60 @@
 // and channel restrictions all come from the manifest, so a world that renames a
 // channel or changes an enum value stays validated instead of silently failing open.
 
+import { SHAPES, plot } from '../public/plot.js';
+
+// A diagram spec is the first channel value that is an object, so its rules are
+// structural rather than about length or set membership. Everything here is something
+// the JSON Schema cannot state: per-shape coefficient counts, an ordered domain, marks
+// that actually land inside it.
+//
+// The last check DRAWS THE FIGURE. That is not belt and braces — it is the only check
+// that cannot drift, because it asks the real plotter whether it can really draw this
+// rather than asking a second implementation of the same rules. The plotter is pure, so
+// running it here costs nothing and breaks no invariant.
+function diagramFailures(v) {
+  const out = [];
+  if (v == null || typeof v !== 'object' || Array.isArray(v)) return ['is not a diagram spec object'];
+
+  const shape = SHAPES[v.shape];
+  if (!shape) return [`shape "${v.shape}" is not one of ${Object.keys(SHAPES).join(', ')}`];
+
+  const c = v.coefficients;
+  const [lo, hi] = shape.arity;
+  if (!Array.isArray(c) || !c.every((n) => typeof n === 'number' && Number.isFinite(n))) {
+    out.push('coefficients must all be finite numbers');
+  } else if (c.length < lo || c.length > hi) {
+    out.push(lo === hi
+      ? `${v.shape} takes exactly ${lo} coefficients, got ${c.length}`
+      : `${v.shape} takes ${lo} to ${hi} coefficients, got ${c.length}`);
+  }
+
+
+  // A shape that derives its direction from two points needs those points to be at two
+  // different x values, or the derivation divides by zero. Declared beside the shape.
+  const [i, j] = shape.distinct ?? [];
+  if (i != null && Array.isArray(c) && c[i] === c[j]) {
+    out.push(`${v.shape} needs coefficients ${i} and ${j} to differ, both are ${c[i]}`);
+  }
+
+  const d = v.domain;
+  if (!Array.isArray(d) || d.length !== 2 || !d.every(Number.isFinite)) {
+    out.push('domain must be two finite numbers');
+  } else if (!(d[1] > d[0])) {
+    out.push(`domain [${d[0]}, ${d[1]}] is empty or reversed; min must be smaller than max`);
+  } else {
+    for (const m of Array.isArray(v.marks) ? v.marks : []) {
+      if (typeof m !== 'number' || m < d[0] || m > d[1]) {
+        out.push(`mark ${m} is outside the domain [${d[0]}, ${d[1]}]`);
+      }
+    }
+  }
+
+  if (out.length) return out;
+  try { plot(v); } catch (err) { out.push(String(err.message ?? err).replace(/^plot: /, '')); }
+  return out;
+}
+
 export function validate(world, out) {
   const failures = [];
   const beats = out?.beats;
@@ -44,6 +98,11 @@ export function validate(world, out) {
         }
       }
 
+      // An optional channel is allowed to be absent; present, it is held to every rule.
+      if (ch.kind === 'diagram' && v != null) {
+        for (const reason of diagramFailures(v)) failures.push({ beat: i, field: name, reason });
+      }
+
       // Manifest-declared restrictions: { "considering": "misconception" }.
       const kindFor = ch.restrict?.[v];
       if (kindFor && b.kind !== kindFor) {
@@ -74,6 +133,15 @@ export function validate(world, out) {
         });
       }
     });
+  }
+
+  // An optional channel that is never used across the whole module. Declared per
+  // channel, enforced here, so no channel name appears in this file. Module scope
+  // rather than beat scope on purpose: no single beat is at fault, the module is.
+  for (const [name, ch] of channels) {
+    if (ch.atLeastOnce && !beats.some((b) => b[name] != null)) {
+      failures.push({ scope: 'module', reason: `no beat uses ${name}, and the module must use it at least once` });
+    }
   }
 
   // MODULE-LEVEL CHANNELS. Same rules, different scope: these sit beside `beats`

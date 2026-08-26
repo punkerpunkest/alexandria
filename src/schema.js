@@ -5,14 +5,58 @@
 // Nothing in here names a channel. Every property is derived from the manifest,
 // so a world that renames or drops a channel needs no change on this side.
 
+// The diagram grammar is DEFINED in the plotter and imported here, never restated. If
+// the enum the model is offered and the shapes the plotter can actually draw were two
+// lists, they would drift, and the symptom would be a valid-looking spec that throws at
+// draw time. The import direction is unusual — `src/` reaching into `public/` — and it
+// is deliberate: the plotter is browser-delivered runtime code, and one definition
+// beats two copies. It stays pure, so Node imports it exactly as the browser does.
+import { SHAPES } from '../public/plot.js';
+
 const describeSet = (job, set) =>
   job + ' Options: ' + Object.entries(set).map(([k, v]) => `${k} = ${v}`).join('; ');
+
+// A diagram is the first channel whose value is an OBJECT rather than a string. The
+// model picks a shape and supplies numbers; it never writes a drawing instruction. The
+// y range is deliberately absent — the plotter derives it from the function, so a range
+// that does not contain its own curve is not a mistake the model is able to make.
+function diagramProperty(ch) {
+  const arities = Object.entries(SHAPES).map(([k, s]) => `${k}: ${s.describe}`).join(' ');
+  const [min] = Object.values(SHAPES).reduce(
+    ([lo, hi], s) => [Math.min(lo, s.arity[0]), Math.max(hi, s.arity[1])], [Infinity, 0]);
+  const max = Object.values(SHAPES).reduce((hi, s) => Math.max(hi, s.arity[1]), 0);
+  return {
+    type: 'object',
+    additionalProperties: false,
+    description: ch.job,
+    properties: {
+      shape: { type: 'string', enum: Object.keys(SHAPES), description: `The family of function to draw. ${arities}` },
+      coefficients: {
+        type: 'array', items: { type: 'number' }, minItems: min, maxItems: max,
+        description: 'The coefficients for the chosen shape, in the order its description gives. The count must match that shape exactly. Before settling on them, check two things: that the curve they produce really has the shape the caption claims, and that its values are plausible in the unit named by y_label.',
+      },
+      domain: {
+        type: 'array', items: { type: 'number' }, minItems: 2, maxItems: 2,
+        description: 'The x range to draw, as [min, max]. min must be smaller than max. Choose a range where the interesting behaviour is visible.',
+      },
+      x_label: { type: 'string', maxLength: 40, description: 'What the horizontal axis measures, with its unit.' },
+      y_label: { type: 'string', maxLength: 40, description: 'What the vertical axis measures, with its unit.' },
+      caption: { type: 'string', maxLength: ch.captionMaxLength ?? 120, description: 'One sentence saying what the diagram shows. Not a restatement of the axis labels.' },
+      marks: {
+        type: 'array', items: { type: 'number' }, maxItems: 3,
+        description: 'x positions worth pointing at, inside the domain. The runtime labels each with the coordinate the function actually has there, so do not describe them. Usually empty or one.',
+      },
+    },
+    required: ['shape', 'coefficients', 'domain', 'x_label', 'y_label', 'caption', 'marks'],
+  };
+}
 
 // One channel -> one JSON Schema property. Shared by beat channels and module
 // channels, so a world that moves a channel between the two needs no change here.
 function property(world, name, ch) {
   const set = ch.set ? world.assets[ch.set] : null;
   if (ch.kind === 'text') return { type: 'string', maxLength: ch.maxLength, description: ch.job };
+  if (ch.kind === 'diagram') return diagramProperty(ch);
   if (ch.kind === 'enum' || ch.kind === 'asset') {
     const values = ch.values ?? Object.keys(set ?? {});
     return { type: 'string', enum: values, description: set ? describeSet(ch.job, set) : ch.job };
@@ -32,7 +76,11 @@ export function buildSchema(world) {
 
   for (const [name, ch] of Object.entries(world.channels)) {
     properties[name] = property(world, name, ch);
-    required.push(name);
+    // An OPTIONAL channel is one whose absence is meaningful rather than a failure to
+    // answer. Longform's figure is the case: most beats are prose, and requiring one
+    // per beat would force the model to invent a graph for a paragraph that does not
+    // want one. No existing channel declares it, so both shipped schemas are unchanged.
+    if (!ch.optional) required.push(name);
   }
 
   const beat = { type: 'object', additionalProperties: false, properties, required };
@@ -68,6 +116,16 @@ export function buildSystemPrompt(world) {
     .filter(([, ch]) => ch.hold === 'module')
     .map(([name]) => `- ${name} is chosen once for the whole module. Pick it on the first beat and repeat that exact value on every following beat. Never change it mid-module.`);
 
+  // An OPTIONAL channel the model never once uses is a channel that does not exist.
+  // Measured: Longform's `figure` is optional and the first generation omitted it from
+  // all four beats, on a question whose whole subject is one quantity varying with
+  // another. Third instance of the same declare-once-steer-and-enforce shape, after
+  // `restrict` and `hold` — steered from the manifest here, enforced from the manifest
+  // in the validator, stated in neither place twice.
+  const atLeastOnce = Object.entries(world.channels)
+    .filter(([, ch]) => ch.atLeastOnce)
+    .map(([name]) => `- ${name} is optional on any single beat, but the module as a whole must use it at least once. Choose the beat where it does the most work.`);
+
   return [
     `You write teaching beats for a learning app. A beat is one screen the student reads.`,
     ``,
@@ -84,5 +142,6 @@ export function buildSystemPrompt(world) {
     `- Respect every length limit in the schema. Shorter is better than truncated.`,
     ...restrictions,
     ...held,
+    ...atLeastOnce,
   ].join('\n');
 }

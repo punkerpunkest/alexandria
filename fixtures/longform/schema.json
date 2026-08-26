@@ -1,0 +1,118 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "beats": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 7,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "concept",
+              "misconception"
+            ],
+            "description": "concept teaches, misconception names the wrong turn most people take."
+          },
+          "prose": {
+            "type": "string",
+            "maxLength": 420,
+            "description": "One paragraph of the article. It carries the teaching on its own; nothing else on this section is required."
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 120,
+            "description": "A short aside in the margin: a definition, a unit, a caveat, a number worth having. Omit it unless the margin genuinely earns it. Most sections have none."
+          },
+          "figure": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "A graph, when a relationship is easier to see than to read. Best where one quantity varies with another and the shape of that variation is the point. One or two across the article, never one per section.",
+            "properties": {
+              "shape": {
+                "type": "string",
+                "enum": [
+                  "turning",
+                  "polynomial",
+                  "exponential",
+                  "logarithmic",
+                  "sinusoidal",
+                  "power",
+                  "reciprocal"
+                ],
+                "description": "The family of function to draw. turning: A curve with exactly one turning point. Exactly 4: h, k, xr, yr. The turning point is at x = h, where y = k. The curve also passes through (xr, yr), a second real value from elsewhere in the range, and xr must not equal h. Whether the curve peaks or dips is WORKED OUT from those two points — there is no direction to choose. Use this whenever the figure is about where something is highest or lowest. polynomial: c0 + c1*x + c2*x^2 + ... — 2 to 6 coefficients, lowest power first. Straight lines and general curves. If the figure is about a maximum or a minimum, use quadratic instead. exponential: a*e^(b*x) + c — exactly 3: a, b, c. Growth and decay. logarithmic: a*ln(b*x) + c — exactly 3: a, b, c. Only defined where b*x > 0. sinusoidal: a*sin(b*x + c) + d — exactly 4: a, b, c, d. Waves and oscillation. power: a*x^b + c — exactly 3: a, b, c. Square laws, inverse squares. reciprocal: a/(b*x) + c — exactly 3: a, b, c. Undefined at x = 0."
+              },
+              "coefficients": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 6,
+                "description": "The coefficients for the chosen shape, in the order its description gives. The count must match that shape exactly. Before settling on them, check two things: that the curve they produce really has the shape the caption claims, and that its values are plausible in the unit named by y_label."
+              },
+              "domain": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The x range to draw, as [min, max]. min must be smaller than max. Choose a range where the interesting behaviour is visible."
+              },
+              "x_label": {
+                "type": "string",
+                "maxLength": 40,
+                "description": "What the horizontal axis measures, with its unit."
+              },
+              "y_label": {
+                "type": "string",
+                "maxLength": 40,
+                "description": "What the vertical axis measures, with its unit."
+              },
+              "caption": {
+                "type": "string",
+                "maxLength": 120,
+                "description": "One sentence saying what the diagram shows. Not a restatement of the axis labels."
+              },
+              "marks": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 3,
+                "description": "x positions worth pointing at, inside the domain. The runtime labels each with the coordinate the function actually has there, so do not describe them. Usually empty or one."
+              }
+            },
+            "required": [
+              "shape",
+              "coefficients",
+              "domain",
+              "x_label",
+              "y_label",
+              "caption",
+              "marks"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "prose"
+        ]
+      }
+    },
+    "ask_line": {
+      "type": "string",
+      "maxLength": 110,
+      "description": "The closing line of the article, after the last section. Land what was worked out, then ask where the reader wants to go next. It must end in a question."
+    }
+  },
+  "required": [
+    "beats",
+    "ask_line"
+  ]
+}

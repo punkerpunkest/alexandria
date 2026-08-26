@@ -1,0 +1,231 @@
+/* LONGFORM — a reading surface. Continuous archetype: every section is already on the
+ * page and scrolling is the only movement, so nothing in here reacts to navigation.
+ * What it does instead is react to SCROLL POSITION, which the browser exposes directly
+ * through a view timeline. No published state is involved and none is needed.
+ *
+ * Read `Alexandria - World Spec` before changing the structure. Vocabulary is fixed in
+ * `Alexandria - Glossary`.
+ */
+
+/* ---- palette ---------------------------------------------------------------- */
+:host, :root {
+  --paper:      #fbf7f0;
+  --ink:        #2b2823;
+  --ink-soft:   #5f574c;
+  --ink-faint:  #8a7f70;
+  --rule:       #e6ddcd;
+  --accent:     #a03c1c;   /* terracotta: the curve, the marks, the rail */
+  --measure:    34em;      /* the prose column, in ems of the prose type */
+  --margin-col: 13em;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+/* ---- the scroller -----------------------------------------------------------
+ * `.stack` is the projector's box and the presets sheet says a world may style it.
+ * This is the whole of what makes the archetype continuous on screen: the projector
+ * puts every section in the stack, and the world decides that the stack scrolls.
+ * Overriding `display: grid` is what releases the sections from the single shared
+ * grid cell the other two worlds rely on. */
+.stack {
+  display: block;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  scroll-behavior: smooth;
+}
+
+/* The rail is hoisted, so the presets put it at z-index 0 — underneath the sections,
+ * which would let the article scroll straight over the top of it. Persisted elements
+ * are explicitly the world's to re-layer. */
+.stack > .rail { z-index: 5; }
+
+/* ---- the progress rail ------------------------------------------------------
+ * Same published property as the other two worlds, different source: in a scrolling
+ * world the projector derives --progress from scroll position rather than from an
+ * index. The world does not know or care which. */
+.rail {
+  position: sticky;
+  top: 0;
+  height: 3px;
+  background: var(--rule);
+}
+.rail-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(var(--progress, 0));
+  /* Transform rather than width: it does not lay anything out, so a scroll that fires
+   * every frame costs a composite and nothing else. */
+  transition: transform 90ms linear;
+}
+
+/* ---- a section --------------------------------------------------------------
+ * Two columns: the prose, and a margin that holds the note. The margin column is
+ * declared even when it is empty, which is deliberate — the measure must not change
+ * from one paragraph to the next depending on whether a note happened to land. */
+.section {
+  display: grid;
+  grid-template-columns: minmax(0, var(--measure)) minmax(0, var(--margin-col));
+  grid-template-areas:
+    "prose  note"
+    "figure .";
+  column-gap: 2.6rem;
+  justify-content: center;
+  align-content: start;
+  padding: 0 2rem;
+}
+.section:first-of-type { padding-top: 3.4rem; }
+.section:last-of-type  { padding-bottom: 1rem; }
+
+.prose {
+  grid-area: prose;
+  margin: 0 0 1.55em;
+  font-size: 19px;
+  line-height: 1.62;
+  hanging-punctuation: first;
+  text-wrap: pretty;
+}
+
+/* ---- the margin note --------------------------------------------------------
+ * `:empty` is doing real work here, not tidying. `note` is an OPTIONAL channel, so a
+ * section with no note renders the element with no children at all, and this rule is
+ * what keeps that from leaving a hole in the layout. It only works because the
+ * template has no whitespace inside the element — a single space is a text node and
+ * `:empty` stops matching. */
+.note {
+  grid-area: note;
+  margin: 0.35em 0 1.55em;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--rule);
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.note:empty { display: none; }
+
+/* ---- the figure ------------------------------------------------------------- */
+.figure {
+  grid-area: figure;
+  margin: 0.2em 0 2.2em;
+}
+.figure:empty { display: none; }
+
+.alx-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  /* The curve and the marks paint with currentColor, so a world recolours a figure by
+   * setting one property. The plotter ships no palette of its own. */
+  color: var(--accent);
+}
+.alx-plot-grid      { stroke: var(--rule); stroke-width: 1; }
+.alx-plot-axis      { stroke: #c3b6a1; stroke-width: 1.4; }
+.alx-plot-curve     { stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.alx-plot-mark      { fill: currentColor; }
+.alx-plot-marklabel { fill: currentColor; font-family: var(--sans); font-size: 13px; font-weight: 600; }
+.alx-plot-tick      { fill: var(--ink-faint); font-family: var(--sans); font-size: 12px; }
+.alx-plot-axislabel { fill: var(--ink-soft); font-family: var(--sans); font-size: 13px; }
+.alx-plot-caption {
+  margin-top: 0.7em;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ---- reveal on scroll -------------------------------------------------------
+ * The archetype's own motion, and the reason this world publishes no phase changes:
+ * a view timeline reads the scroller directly, so the runtime never has to tell the
+ * world where anything is. `Alexandria - Rendering` names this as Longform's mechanism.
+ *
+ * Longhand, not the `animation` shorthand: the shorthand resets animation-duration to
+ * 0s, and a scroll-driven animation wants `auto` — the full range of its timeline.
+ * Every section is `settled` from the moment it renders, so nothing here fights the
+ * presets sheet, which only animates `entering` and `leaving`. */
+@keyframes lf-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.section {
+  animation-name: lf-rise;
+  animation-duration: auto;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: view();
+  animation-range: entry 0% entry 55%;
+}
+/* A browser with no view-timeline support runs `lf-rise` as an ordinary 0s animation
+ * and lands on the `to` frame, so the fallback is "visible", never "invisible". */
+@supports not (animation-timeline: view()) {
+  .section { animation-name: none; }
+}
+
+/* ---- the closing screen -----------------------------------------------------
+ * Two contexts, one template: the end of the article, and stage 0 before any article
+ * exists. Centring on a full-height box covers both — after content it reads as a
+ * closing panel, and alone it reads as the opening frame. */
+.closing {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  padding: 3rem 2rem 4rem;
+  text-align: center;
+}
+.closing-line {
+  margin: 0;
+  max-width: 26em;
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.closing-ask { width: min(30em, 100%); }
+.closing-ask form { display: flex; gap: 0.6rem; }
+.closing-ask input[data-ask="input"] {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: 1px solid #cfc2ad;
+  border-radius: 9px;
+  background: #fff;
+  font: inherit;
+  font-family: var(--sans);
+  font-size: 15px;
+  color: var(--ink);
+}
+.closing-ask input[data-ask="input"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+.closing-ask button[data-ask="submit"] {
+  padding: 0.8rem 1.3rem;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The opening frame is the one moment this world does fade something in, because at
+ * stage 0 there is no scroll to drive anything. */
+.closing[data-phase="entering"] { animation-name: alx-fade-in; }
+
+/* ---- generation in flight ---------------------------------------------------
+ * The article stays readable while the next one is written. `Alexandria - Cold Start`:
+ * the stage is never blanked to a spinner. */
+.stack[data-busy] { opacity: 0.55; transition: opacity 160ms ease-out; }

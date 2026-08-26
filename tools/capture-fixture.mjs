@@ -15,7 +15,7 @@ const write = (p, s) => writeFile(join(F, p), typeof s === 'string' ? s : JSON.s
 
 const modules = (await readdir(join(F, 'beats'))).filter((f) => f.endsWith('.json')).sort();
 
-for (const id of ['cartoon', 'visual-novel']) {
+for (const id of ['cartoon', 'visual-novel', 'longform']) {
   const world = JSON.parse(await readFile(join(ROOT, 'worlds', id, 'world.json'), 'utf8'));
   await mkdir(join(F, id), { recursive: true });
 

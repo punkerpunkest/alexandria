@@ -34,7 +34,7 @@ function merge(base, patch) {
 
 // ---- 1. the golden outputs ---------------------------------------------------
 const modules = (await readdir(join(F, 'beats'))).filter((f) => f.endsWith('.json')).sort();
-for (const id of ['cartoon', 'visual-novel']) {
+for (const id of ['cartoon', 'visual-novel', 'longform']) {
   const w = await world(id);
   eq(`${id}/schema.json`, buildSchema(w), await read(`${id}/schema.json`));
   eq(`${id}/system-prompt.txt`, buildSystemPrompt(w) + '\n', await read(`${id}/system-prompt.txt`));
