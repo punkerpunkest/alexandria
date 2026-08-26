@@ -29,15 +29,28 @@ export class Generator {
       '--json-schema', JSON.stringify(this.schema),
     ];
     if (this.systemPrompt) args.push('--system-prompt', this.systemPrompt);
-    args.push('--effort', 'low');
+    // Overridable so the assumption below can be TESTED rather than trusted. Default
+    // unchanged, so every existing measurement still holds.
+    args.push('--effort', process.env.EFFORT ?? 'low');
 
     // MEASURED, and the single biggest lever in the spike: with thinking left on,
     // one module took 138s (115s of it before the first token). With it off the same
     // module takes ~15s and costs a quarter as much. A channel-filling call is not a
     // reasoning task, so the thinking budget is pure latency here.
+    //
+    // TRUE FOR PROSE AND ENUMS. FALSE FOR A DIAGRAM SPEC — measured 26 Aug, ten runs on
+    // one question. Choosing coefficients for a real curve means recalling the physics
+    // and then converting it into a sign convention, which is reasoning, and with the
+    // budget at zero it failed 5/5 across three grammars and two model tiers. With
+    // thinking on it was correct 5/5. See worlds/longform/README.md.
+    //
+    // The setting is per PROCESS, not per channel, so buying that correctness costs the
+    // prose its latency too: 11-24s becomes 35-133s, and the slowest run overran the
+    // module's own reading time, which is the no-dead-time guarantee. Left at the fast
+    // default deliberately; the fix is a design decision, not a flag flip.
     this.proc = spawn('claude', args, {
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, MAX_THINKING_TOKENS: '0' },
+      env: { ...process.env, MAX_THINKING_TOKENS: process.env.THINKING ?? '0' },
     });
     this.proc.stdout.setEncoding('utf8');
     this.proc.stdout.on('data', (chunk) => this._onData(chunk, t0));

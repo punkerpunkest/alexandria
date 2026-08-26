@@ -27,9 +27,9 @@ secretly shaped like the first world, and three of them only became visible here
 > **The plotter guarantees the drawing is faithful to the spec. Nothing guarantees the
 > spec is faithful to reality.**
 
-This is the sharpest thing the world surfaced, and it is not a bug to be fixed. Asked to
-draw water's density against temperature — a curve that peaks at 4 °C — the model got the
-figure wrong five times running, across two model tiers, in five different grammars:
+This is the sharpest thing the world surfaced. Asked to draw water's density against
+temperature — a curve that peaks at 4 °C — the model got the figure wrong five times
+running, across two model tiers, in five different grammars:
 
 | Attempt | Grammar offered | What came back |
 |---|---|---|
@@ -39,16 +39,50 @@ figure wrong five times running, across two model tiers, in five different gramm
 | 4 | same, on Sonnet rather than Haiku | chose `valley` |
 | 5 | direction DERIVED from two points, no direction to choose | avoided the shape entirely and picked `exponential`, which has no turning point at all |
 
+All five ran with the reasoning budget at zero, which turned out to be the actual cause.
+
 Every restructuring fixed something real, and each is worth keeping — implausible
 magnitudes, hidden turning points and unrepresentable directions are all gone. None of
-them fixed the model being wrong about the world. A generated diagram asserts with the
-authority of a drawing, and no rule in the validator can check it against physics. This
-is the confidence-laundering risk from `Alexandria - Open Questions` in its most concrete
-form yet, and it is the one thing here that should worry a reader.
+them fixed the direction being wrong.
+
+### The cause was the reasoning budget, not the grammar
+
+`src/claude.js` sets `MAX_THINKING_TOKENS: '0'`, justified by a measurement: with thinking
+on a module took 138s, with it off ~15s at a quarter the cost, because "a channel-filling
+call is not a reasoning task". That is true of prose and of an enum. It is **false of a
+diagram spec**, which requires recalling the physics and then converting it into a sign
+convention. Thinking was switched off for the one channel in the project that needs it.
+
+Ten runs on the same question, scored by finding where the drawn curve actually attains
+its maximum and asking whether that is 4 °C:
+
+| Thinking | Runs | Correct | Wall | Cost |
+|---|---|---|---|---|
+| off (default) | 5, incl. one on Sonnet | **0** | 11–24s | $0.012–0.060 |
+| on (`THINKING=6000 EFFORT=medium`) | 5, independent processes | **5** | 35–133s | $0.024–0.153 |
+
+Every thinking-on run chose `turning` and peaked at exactly x = 4.
+
+> **It is not a flag flip, because the setting is per process rather than per channel.**
+> Buying a correct figure buys the prose the same latency, and the slowest run took 133s
+> against a module whose own reading time is 129s — which breaks the no-dead-time
+> guarantee that Gate 3 exists to protect. A world that is 90% prose pays a reasoning
+> budget it does not need on every beat.
+>
+> The obvious resolutions are per-channel effort, or generating the figure in a second
+> pass while the reader is already reading. Both are design decisions rather than fixes,
+> so the default is left fast and `EFFORT` / `THINKING` are now env-overridable so the
+> question can be measured rather than argued.
+
+The residual risk is still real and still unclosed: nothing in the validator can check a
+spec against physics, so a wrong figure that is internally consistent will always render
+happily. Thinking moves the failure rate, it does not make the check exist. This remains
+the sharpest instance of the confidence-laundering risk from `Alexandria - Open Questions`.
 
 The figure in the golden fixture is **curated**: the prose, notes and ask line are
 verbatim from one generation, and the figure was replaced by hand. `fixtures/beats/
-longform.*.json` says so in its `_curated` field.
+longform.*.json` says so in its `_curated` field. It was blessed before the thinking
+finding; regenerating it with thinking on would very likely need no hand correction.
 
 ## The grammar, and why it is shaped this way
 
