@@ -292,23 +292,6 @@
           "reason": "turning takes exactly 4 coefficients, got 2"
         }
       ]
-    },
-    {
-      "id": "atleastonce-never-used",
-      "site": "validate.js",
-      "world": "longform",
-      "variant": "min",
-      "beatPatch": {
-        "3": {
-          "figure": null
-        }
-      },
-      "failures": [
-        {
-          "scope": "module",
-          "reason": "no beat uses figure, and the module must use it at least once"
-        }
-      ]
     }
   ],
   "_browserSide": [

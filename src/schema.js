@@ -116,16 +116,6 @@ export function buildSystemPrompt(world) {
     .filter(([, ch]) => ch.hold === 'module')
     .map(([name]) => `- ${name} is chosen once for the whole module. Pick it on the first beat and repeat that exact value on every following beat. Never change it mid-module.`);
 
-  // An OPTIONAL channel the model never once uses is a channel that does not exist.
-  // Measured: Longform's `figure` is optional and the first generation omitted it from
-  // all four beats, on a question whose whole subject is one quantity varying with
-  // another. Third instance of the same declare-once-steer-and-enforce shape, after
-  // `restrict` and `hold` — steered from the manifest here, enforced from the manifest
-  // in the validator, stated in neither place twice.
-  const atLeastOnce = Object.entries(world.channels)
-    .filter(([, ch]) => ch.atLeastOnce)
-    .map(([name]) => `- ${name} is optional on any single beat, but the module as a whole must use it at least once. Choose the beat where it does the most work.`);
-
   return [
     `You write teaching beats for a learning app. A beat is one screen the student reads.`,
     ``,
@@ -142,6 +132,5 @@ export function buildSystemPrompt(world) {
     `- Respect every length limit in the schema. Shorter is better than truncated.`,
     ...restrictions,
     ...held,
-    ...atLeastOnce,
   ].join('\n');
 }

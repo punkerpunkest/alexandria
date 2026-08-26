@@ -74,10 +74,45 @@ Every thinking-on run chose `turning` and peaked at exactly x = 4.
 > so the default is left fast and `EFFORT` / `THINKING` are now env-overridable so the
 > question can be measured rather than argued.
 
+### What the default config actually gets right
+
+Six questions, fresh process each, default settings — thinking off, Haiku — scored by
+checking numerically that the drawn curve does what the subject requires. Run twice, before
+and after tightening the `turning` description:
+
+| Question | Wanted | Before | After |
+|---|---|---|---|
+| graph of y = x² | a valley bottoming at 0 | flat line | correct |
+| height of a thrown ball | rises to a peak, comes down | correct | correct |
+| radioactive decay | falls throughout, never negative | correct | correct |
+| area of a square vs side | rises, curving upward | correct | correct |
+| a sine wave | oscillates | correct | correct |
+| collapse of the Roman Republic | **no figure at all** | none | none |
+
+Figures appeared on 5/5 questions that warranted one, both times, with no rule forcing
+them — which is the evidence that removing `atLeastOnce` did not cost anything. The control
+stayed clean both times.
+
+> **The split is empirical versus definitional, and it explains the water disaster.**
+> Every question above is one where the function IS the answer: y = x² needs no recall,
+> only expression. Water density against temperature required recalling a measured dataset
+> and then converting it into a coefficient sign, which is the step that failed 5/5. So the
+> earlier result was not "the model cannot draw" — it was "the model cannot recall physical
+> data and re-express it without reasoning". Definitional maths is reliable at the default
+> settings; empirical curves are where a reasoning budget still earns its cost.
+
+The one failure was mechanically catchable and is now caught. Asked for y = x² the model
+gave the turning point (0,0) correctly and then (1,0) as its second point, where the real
+curve is at (1,1) — deriving a curvature of zero and drawing a horizontal line. The shape's
+NAME is a claim, so the validator now checks that a `turning` curve actually turns, which
+needs no subject knowledge at all.
+
 The residual risk is still real and still unclosed: nothing in the validator can check a
 spec against physics, so a wrong figure that is internally consistent will always render
-happily. Thinking moves the failure rate, it does not make the check exist. This remains
-the sharpest instance of the confidence-laundering risk from `Alexandria - Open Questions`.
+happily. The Rome figure would have passed every rule here. Thinking moves the failure
+rate, and self-consistency catches contradiction, but neither makes an external check
+exist. This remains the sharpest instance of the confidence-laundering risk from
+`Alexandria - Open Questions`.
 
 The figure in the golden fixture is **curated**: the prose, notes and ask line are
 verbatim from one generation, and the figure was replaced by hand. `fixtures/beats/
@@ -104,7 +139,7 @@ at, asking for it only creates a way to be wrong:
 than restating it. Adding a shape means an entry there and an arm in `evaluate`, and the
 schema, the prompt and the validator all follow automatically.
 
-## Three additions to the world-authoring surface
+## Two additions to the world-authoring surface
 
 All three are declared per channel, steered from the manifest, and enforced from the same
 declaration, which is the pattern `restrict` and `hold` already established.
@@ -115,10 +150,19 @@ declaration, which is the pattern `restrict` and `hold` already established.
   the slot rather than inheriting the previous screen's value. That last part matters: the
   normal rule is that an unmentioned slot keeps what it had, which for a figure would mean
   showing a graph of something the section is not discussing.
-- **`atLeastOnce: true`** — measured, not theoretical. `figure` was optional and the first
-  generation omitted it from all four beats, on a question whose entire subject is one
-  quantity varying with another. An optional channel the model never uses is a channel
-  that does not exist.
+A third, `atLeastOnce: true`, was built and then **removed**. It required the module to use
+an optional channel at least once, and it looked like `restrict` and `hold` — declared per
+channel, steered and enforced from one place. It is not the same kind of rule. Those two
+constrain the relationship between values the model has already chosen to emit, which is a
+consistency question and always checkable. `atLeastOnce` asserts that every question this
+world receives is quantitative, which is a claim about SUBJECT MATTER made before the
+subject is known.
+
+On "Why did the Roman Republic collapse?" the model correctly omitted the figure, the
+validator called that a failure, and the repair loop — which is not optional — forced it to
+invent `General's political power, units` reaching 2,981 on an axis that cannot exist. The
+model was right and the rule was wrong, and the rule wins by construction. A rule that can
+only be satisfied by fabricating is worse than no rule.
 
 ## Layout notes
 

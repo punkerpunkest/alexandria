@@ -38,7 +38,7 @@ export const SHAPES = {
   // good at -- the turning point, and one real value from elsewhere -- and the curve
   // through them decides. Same move as deriving the y range and the mark labels: when a
   // value can be computed from what the model is good at, never ask for it.
-  turning:     { arity: [4, 4], distinct: [0, 2], describe: 'A curve with exactly one turning point. Exactly 4: h, k, xr, yr. The turning point is at x = h, where y = k. The curve also passes through (xr, yr), a second real value from elsewhere in the range, and xr must not equal h. Whether the curve peaks or dips is WORKED OUT from those two points — there is no direction to choose. Use this whenever the figure is about where something is highest or lowest.' },
+  turning:     { arity: [4, 4], distinct: [0, 2], varies: [1, 3], describe: 'A curve with exactly one turning point. Exactly 4: h, k, xr, yr. The turning point is at x = h, where y = k. The curve also passes through (xr, yr), a second real value from elsewhere in the range: xr must not equal h, and yr must be the value the curve genuinely takes at xr, which is never the same as k. Whether the curve peaks or dips is WORKED OUT from those two points — there is no direction to choose. Use this whenever the figure is about where something is highest or lowest.' },
   polynomial:  { arity: [2, 6], describe: 'c0 + c1*x + c2*x^2 + ... — 2 to 6 coefficients, lowest power first. Straight lines and general curves. If the figure is about a maximum or a minimum, use quadratic instead.' },
   exponential: { arity: [3, 3], describe: 'a*e^(b*x) + c — exactly 3: a, b, c. Growth and decay.' },
   logarithmic: { arity: [3, 3], describe: 'a*ln(b*x) + c — exactly 3: a, b, c. Only defined where b*x > 0.' },

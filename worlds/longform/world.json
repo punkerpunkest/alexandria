@@ -1,5 +1,5 @@
 {
-  "_note": "Continuous world. Every section is co-resident in one scroller and scrolling is what advances; there are no controls at all. No cast, no shipped art — the only media is generated, from a diagram spec the model fills in. See README.md.",
+  "_note": "Continuous world. Every section is co-resident in one scroller and scrolling is what advances; there are no controls at all. No cast, no shipped art \u2014 the only media is generated, from a diagram spec the model fills in. See README.md.",
   "id": "longform",
   "name": "Longform",
   "version": "0.1.0",
@@ -52,8 +52,8 @@
       "kind": "diagram",
       "optional": true,
       "captionMaxLength": 120,
-      "job": "A graph, when a relationship is easier to see than to read. Best where one quantity varies with another and the shape of that variation is the point. One or two across the article, never one per section.",
-      "atLeastOnce": true
+      "job": "A graph, when a relationship is easier to see than to read. Best where one quantity varies with another and the shape of that variation is the point. Include one where the subject genuinely has such a relationship, and none at all where it does not \u2014 a topic with nothing to plot should have no figure rather than an invented one.",
+      "_fit_note": "Steered, never required. `atLeastOnce` was tried here and removed: it asserted at authoring time that every question this world receives is quantitative, which is a claim about SUBJECT MATTER rather than about consistency. On \"Why did the Roman Republic collapse?\" the model correctly omitted the figure, the validator called that a failure, and the repair loop forced it to invent \"General's political power, units\" reaching 2,981. A rule that can only be satisfied by fabricating is worse than no rule."
     }
   },
   "motion": {

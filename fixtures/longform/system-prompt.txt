@@ -13,4 +13,3 @@ RULES
 - A module teaches and never quizzes. Nothing in it asks the student to answer.
 - Teach the thing itself. Do not describe what you are about to teach.
 - Respect every length limit in the schema. Shorter is better than truncated.
-- figure is optional on any single beat, but the module as a whole must use it at least once. Choose the beat where it does the most work.

@@ -40,6 +40,19 @@ function diagramFailures(v) {
   if (i != null && Array.isArray(c) && c[i] === c[j]) {
     out.push(`${v.shape} needs coefficients ${i} and ${j} to differ, both are ${c[i]}`);
   }
+  // THE SHAPE'S NAME IS A CLAIM, and the numbers have to keep it. `turning` promises a
+  // curve that turns; two points at the same height derive a curvature of zero and draw
+  // a flat line, which is not a turning curve wearing bad coefficients — it is a
+  // different curve entirely. Measured: asked for y = x^2 the model gave the turning
+  // point (0,0) correctly and then (1,0) as its second point, where the real curve is at
+  // (1,1), and the figure rendered as a horizontal line. Checkable without knowing any
+  // subject, because it only asks whether the drawing does what its own shape says.
+  const [p, q] = shape.varies ?? [];
+  if (p != null && Array.isArray(c) && c[p] === c[q]) {
+    out.push(`${v.shape} draws a curve that turns, but coefficients ${p} and ${q} are both ` +
+             `${c[p]}, which flattens it to a straight line. The second point must be a value ` +
+             `the curve actually reaches somewhere other than its turning point.`);
+  }
 
   const d = v.domain;
   if (!Array.isArray(d) || d.length !== 2 || !d.every(Number.isFinite)) {
@@ -133,15 +146,6 @@ export function validate(world, out) {
         });
       }
     });
-  }
-
-  // An optional channel that is never used across the whole module. Declared per
-  // channel, enforced here, so no channel name appears in this file. Module scope
-  // rather than beat scope on purpose: no single beat is at fault, the module is.
-  for (const [name, ch] of channels) {
-    if (ch.atLeastOnce && !beats.some((b) => b[name] != null)) {
-      failures.push({ scope: 'module', reason: `no beat uses ${name}, and the module must use it at least once` });
-    }
   }
 
   // MODULE-LEVEL CHANNELS. Same rules, different scope: these sit beside `beats`
