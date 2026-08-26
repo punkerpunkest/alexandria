@@ -51,6 +51,10 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
 let world, templates, presetCss, host, root, stack;
 let screens = [], at = 0, prev = null;
+// What each slot is actually SHOWING. Not the same as the previous screen's fill: a
+// slot the fill does not mention keeps its value, so the two diverge the moment a
+// beatless screen has no opinion about a persisted slot.
+let rendered = new Map();
 let current = null, leaving = null, panelWatcher = null, busy = false;
 let persisted = new Map();          // data-persist key -> the one live node
 
@@ -230,7 +234,12 @@ function hoist(node) {
   }
 }
 
+// Returns the slot keys whose RENDERED value actually moved, which is what
+// `data-changed` must be keyed on. Comparing the previous screen's fill instead marked
+// a slot changed whenever the previous screen merely had no opinion about it — so
+// stepping back off the beatless closing screen animated a byte-identical image.
 function fill(scopes, values) {
+  const changed = new Set();
   for (const slot of across(scopes, 'data-slot')) {
     const key = slot.dataset.slot;
     if (key === 'controls' || key === 'ask') continue;   // runtime-owned, filled below
@@ -239,9 +248,12 @@ function fill(scopes, values) {
     // src to `mascot-undefined.webp`.
     if (!(key in values)) continue;
     const ch = channelFor(key);
+    if (rendered.get(key) !== values[key]) changed.add(key);
+    rendered.set(key, values[key]);
     if (ch?.set) slot.src = assetUrl(ch, values[key], values);
     else slot.textContent = values[key] ?? '';
   }
+  return changed;
 }
 
 // The ask. The runtime owns the input, focus and submit — forced, since a world ships
@@ -315,7 +327,7 @@ function syncControls(scopes) {
 }
 
 // Everything the world's CSS is able to hear. Nothing here names a world.
-function publish(node, values, nav, scopes) {
+function publish(node, values, nav, scopes, changed) {
   node.dataset.phase = 'entering';
   node.dataset.nav = nav;
   if (values.kind) node.dataset.kind = values.kind; else delete node.dataset.kind;
@@ -335,11 +347,7 @@ function publish(node, values, nav, scopes) {
     for (const s of slots) {
       const key = s.dataset.slot;
       if (key === 'controls' || key === 'ask' || !channelFor(key)) continue;
-      if (!(key in values)) continue;             // unmentioned slots did not change
-      // Previous SCREEN's beat vs this screen's. Stays correct if a beat is ever
-      // allowed to span several screens: the same beat differs from itself in
-      // nothing, so nothing is marked, which is the right answer.
-      if (prev[key] !== values[key]) s.setAttribute('data-changed', '');
+      if (changed.has(key)) s.setAttribute('data-changed', '');
     }
   }
 
@@ -396,7 +404,7 @@ function render(nav = 'forward') {
   hoist(node);                                  // before the node is ever in the DOM
   const scopes = [node, ...persisted.values()];
 
-  fill(scopes, values);
+  const changed = fill(scopes, values);
   renderControls(scopes);
   renderAsk(scopes);
   renderReadouts(scopes);
@@ -405,7 +413,7 @@ function render(nav = 'forward') {
   if (current) retire(current, nav);
 
   stack.append(node);
-  publish(node, values, nav, scopes);
+  publish(node, values, nav, scopes, changed);
   current = node;
   syncControls(scopes);
   prev = values;
@@ -503,7 +511,7 @@ async function askFor(question, fixture = null) {
   stack?.removeAttribute('data-busy');
   if (!data?.screens) { setStatus(`generation failed: ${data?.error ?? 'unknown'}`); return; }
 
-  screens = data.screens; at = 0; prev = null;
+  screens = data.screens; at = 0; prev = null; rendered.clear();
   mount(); render('forward');
 
   const m = data.metrics;
@@ -532,7 +540,7 @@ function openingFrame() {
     for (const [name, def] of Object.entries(ch))
       if (def.opening != null) fill[name] = def.opening;
   screens = [{ type, beats: [], fill }];
-  at = 0; prev = null;
+  at = 0; prev = null; rendered.clear();
   mount(); render('forward');
   return true;
 }

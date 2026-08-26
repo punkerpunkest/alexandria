@@ -29,7 +29,7 @@ for (const id of ['cartoon', 'visual-novel']) {
     const failures = validate(world, mod);
     if (failures.length) throw new Error(`${file} does not validate: ${JSON.stringify(failures)}`);
     await write(`${id}/screens.${variant}.json`, paginate(world, mod.beats, mod));
-    reading[variant] = readingTimeMs(world, mod.beats);
+    reading[variant] = readingTimeMs(world, mod.beats, mod);
     console.log(`${id.padEnd(13)} ${variant.padEnd(4)} beats=${mod.beats.length} ` +
       `screens=${paginate(world, mod.beats, mod).length} reading=${reading[variant]}ms validate=clean`);
   }

@@ -19,6 +19,11 @@ const POLICIES = {
 };
 
 export function paginate(world, beats, module = {}) {
+  // Named, never silent. Without this the caller got `beats is not iterable` from the
+  // for-of below, which names neither the world nor the argument.
+  if (!Array.isArray(beats)) {
+    throw new Error(`world "${world.id}": paginate expected an array of beats, got ${typeof beats}`);
+  }
   const p = world.pagination ?? {};
   if (!(p.policy in POLICIES)) {
     throw new Error(
@@ -60,7 +65,15 @@ export function paginate(world, beats, module = {}) {
         `world "${world.id}": pagination.closeWith names screen type "${close}", ` +
         `which is not declared in world.screens`);
     }
-    screens.push({ type: close, beats: [], fill: module });
+    // The closing screen carries the module's DECLARED CHANNELS, not the module object.
+    // Passing it wholesale put a copy of every beat and all of the fixture's metadata
+    // inside the last screen of every result, and contradicted `Alexandria - World Spec`,
+    // which says this fill is the module's own channel values.
+    const fill = {};
+    for (const name of Object.keys(world.module?.channels ?? {})) {
+      if (name in module) fill[name] = module[name];
+    }
+    screens.push({ type: close, beats: [], fill });
   }
   return screens;
 }
@@ -68,12 +81,20 @@ export function paginate(world, beats, module = {}) {
 // Gate 3's measurement: how long would a human spend reading this?
 // Counts every text channel the world declares, so it stays right when a world
 // renames one or adds another.
-export function readingTimeMs(world, beats) {
-  const textChannels = Object.entries(world.channels)
+export function readingTimeMs(world, beats, module = {}) {
+  if (!world?.channels) {
+    throw new Error(`world "${world?.id}": readingTimeMs needs a channels block, and this manifest has none`);
+  }
+  const textOf = (channels) => Object.entries(channels ?? {})
     .filter(([, ch]) => ch.kind === 'text')
     .map(([name]) => name);
-  const words = beats.reduce((n, b) =>
-    n + textChannels.map((c) => b[c] ?? '').join(' ')
-      .trim().split(/\s+/).filter(Boolean).length, 0);
-  return Math.round((words / 200) * 60 * 1000); // 200 wpm
+  const count = (source, names) =>
+    names.map((c) => source[c] ?? '').join(' ').trim().split(/\s+/).filter(Boolean).length;
+
+  const beatWords = beats.reduce((n, b) => n + count(b, textOf(world.channels)), 0);
+  // The closing screen is a screen the student reads, and this function is Gate 3's
+  // measurement of whether reading covers generation. Counting only beats understated
+  // the window by exactly the screen the paginator itself appends.
+  const moduleWords = count(module, textOf(world.module?.channels));
+  return Math.round(((beatWords + moduleWords) / 200) * 60 * 1000); // 200 wpm
 }

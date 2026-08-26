@@ -66,7 +66,7 @@ async function buildModule(question) {
       ttftMs: calls[0]?.ttftMs ?? null,
       costUsd: +(calls.reduce((s, c) => s + (c.costUsd ?? 0), 0)).toFixed(5),
       cacheReadTokens: calls[calls.length - 1]?.cacheReadTokens ?? null,
-      readingTimeMs: readingTimeMs(world, beats),
+      readingTimeMs: readingTimeMs(world, beats, res.data ?? {}),
       beats: beats.length,
     },
   };
@@ -127,7 +127,7 @@ createServer(async (req, res) => {
         return send(res, 200, {
           screens: paginate(world, mod.beats, mod),
           degraded: false, remainingFailures: [],
-          metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(world, mod.beats),
+          metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(world, mod.beats, mod),
                      wallMs: 0, repairs: 0, attempts: 0, costUsd: 0, startupMs: gen.startupMs,
                      apiKeySource: gen.apiKeySource, ttftMs: 0, cacheReadTokens: 0 },
         });

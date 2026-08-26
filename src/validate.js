@@ -31,7 +31,15 @@ export function validate(world, out) {
       // A value outside the world's declared set would resolve to a missing asset.
       if ((ch.kind === 'enum' || ch.kind === 'asset') && v != null) {
         const allowed = ch.values ?? Object.keys(world.assets[ch.set] ?? {});
-        if (allowed.length && !allowed.includes(v)) {
+        // An empty allowed list means the manifest is broken, not that everything is
+        // permitted. Guarding with `allowed.length &&` made this fail OPEN on precisely
+        // the values the check exists to reject: a channel whose `set` names a group
+        // missing from `world.assets` accepted anything, and every one of those values
+        // resolves to a 404. Until the manifest validator exists this is where it surfaces.
+        if (!allowed.length) {
+          failures.push({ beat: i, field: name,
+            reason: `channel declares set "${ch.set}", which is empty or absent from world.assets` });
+        } else if (!allowed.includes(v)) {
           failures.push({ beat: i, field: name, reason: `"${v}" is not one of ${allowed.join(', ')}` });
         }
       }

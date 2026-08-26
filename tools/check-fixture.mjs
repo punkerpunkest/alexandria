@@ -44,7 +44,7 @@ for (const id of ['cartoon', 'visual-novel']) {
     const mod = await json(`beats/${file}`);
     eq(`${id} ${variant} validates clean`, validate(w, mod), '[]\n');
     eq(`${id}/screens.${variant}.json`, paginate(w, mod.beats, mod), await read(`${id}/screens.${variant}.json`));
-    reading[variant] = readingTimeMs(w, mod.beats);
+    reading[variant] = readingTimeMs(w, mod.beats, mod);
   }
   eq(`${id}/reading-time.json`, reading, await read(`${id}/reading-time.json`));
 }
@@ -54,7 +54,7 @@ const { cases } = await json('hostile/cases.json');
 for (const c of cases) {
   let w = await world(c.world);
   if (c.patch) w = merge(w, c.patch);
-  let mod = c.module ?? await json(`beats/${c.world}.max.json`);
+  let mod = c.module ?? await json(`beats/${c.world}.${c.variant ?? 'max'}.json`);
   if (c.modulePatch) mod = merge(mod, c.modulePatch);
   if (c.beatPatch) {
     mod = { ...mod, beats: mod.beats.map((b, i) => (c.beatPatch[i] ? merge(b, c.beatPatch[i]) : b)) };
@@ -62,7 +62,10 @@ for (const c of cases) {
   try {
     if (c.throws) {
       let threw = null;
-      try { buildSchema(w); paginate(w, mod.beats, mod); } catch (e) { threw = e.message; }
+      try {
+        if (c.call === 'readingTime') readingTimeMs(w, mod.beats, mod);
+        else { buildSchema(w); paginate(w, mod.beats, mod); }
+      } catch (e) { threw = e.message; }
       eq(`hostile/${c.id}`, threw, c.throws);
     } else {
       eq(`hostile/${c.id}`, validate(w, mod), JSON.stringify(c.failures, null, 2) + '\n');
@@ -75,6 +78,8 @@ const sites =
   (await readFile(join(ROOT, 'src/paginate.js'), 'utf8')).split('throw new Error').length - 1 +
   (await readFile(join(ROOT, 'src/schema.js'), 'utf8')).split('throw new Error').length - 1 +
   (await readFile(join(ROOT, 'src/validate.js'), 'utf8')).split('failures.push').length - 1 + 1; // +1: the early `return [{no beats}]`
+// Every `throw new Error` in src/ and every `failures.push` in validate.js must be reached
+// by a case. Adding a failure path without a case turns this red, which is the point.
 eq('every failure site has a hostile case', String(cases.length), String(sites));
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);
