@@ -133,6 +133,32 @@ none needs a custom `object-position`.
 | basketball-court | 2048×1452 | 1.41      | 68%          |
 | corridor-morning | 2048×1452 | 1.41      | 68%          |
 
+## The type is calibrated to a font this package does not ship
+
+`.line` is 26px with a `max-width` of 78cqw, and the `line` cap of 180 characters was
+chosen against a **measured 10.33px per character (0.492em)** — at which a capped line
+takes three rows and clears the box by about 28px. Below roughly 1100px of stage width
+it takes four rows and overflows, which is what `viewport.minWidth` exists to prevent.
+
+**That 10.33px is Hiragino's.** This world has no bundled font and runs on a
+platform-exclusive stack (`"Hiragino Sans", "Yu Gothic UI", "Segoe UI", system-ui`), so
+it resolves to a different typeface on macOS, Windows and Linux, and the metric moves
+with it.
+
+> [!warning] This is the gap that touches the golden fixture
+> A fixture freezes **content**, and content length here is governed by a cap calibrated
+> against those metrics. A fixture captured on one machine may therefore not reproduce on
+> another. Either capture on a pinned machine, or bundle a face first. Bundling was
+> deliberately deferred by Jordan on 26 Aug — this note exists so the consequence is not
+> rediscovered.
+
+## Generation baseline
+
+13 live generations during the build, **zero repairs on every one**. Each returned 6
+beats, 4.3–14.7s wall, $0.006–$0.060. Worth preserving as a baseline: `hold` and
+`keyedBy` steer well enough that the repair loop never runs, so a regression in either
+shows up as cost and latency rather than as a visibly broken render.
+
 ## Format note
 
 Sprites are **lossless** WebP. Lossy WebP blew out the alpha edges on flat line art
