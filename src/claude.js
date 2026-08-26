@@ -39,6 +39,21 @@ export class Generator {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, MAX_THINKING_TOKENS: '0' },
     });
+    // SETUP FAILURE, not a crash. `spawn` emits 'error' when the binary is not on PATH,
+    // and with no handler Node rethrows it as an unhandled 'error' event that kills the
+    // process before the server ever listens — so a student without Claude Code installed
+    // got a window that loaded nothing and no way to find out why. Stage 0 needs no model
+    // call, so the app can open, paint the world and say what is missing.
+    this.proc.on('error', (err) => {
+      this.unavailable = err.code === 'ENOENT'
+        ? 'Claude Code is not installed, or not on PATH. Alexandria runs it for you and ' +
+          'never asks for an API key, so it has to be installed and logged in first: ' +
+          'install it, run `claude` once to sign in, then reopen Alexandria.'
+        : `Claude Code could not be started: ${err.message}`;
+      console.error(`[claude] ${this.unavailable}`);
+      if (this.pending) { this.pending.reject(new Error(this.unavailable)); this.pending = null; }
+      this.proc = null;
+    });
     this.proc.stdout.setEncoding('utf8');
     this.proc.stdout.on('data', (chunk) => this._onData(chunk, t0));
     this.proc.stderr.setEncoding('utf8');
@@ -95,6 +110,7 @@ export class Generator {
   // Turns are serialised: one process handles one turn at a time.
   turn(text) {
     this.queue = this.queue.then(() => new Promise((resolve, reject) => {
+      if (this.unavailable) return reject(new Error(this.unavailable));
       if (!this.proc) return reject(new Error('generator not running'));
       this.pending = { resolve, reject };
       const msg = { type: 'user', message: { role: 'user', content: [{ type: 'text', text }] } };

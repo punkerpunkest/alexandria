@@ -133,6 +133,7 @@ createServer(async (req, res) => {
         });
       }
 
+      if (gen.unavailable) return send(res, 503, { error: gen.unavailable, setup: true });
       const t = await buildModule(question || 'Teach me something interesting.');
       console.log(`[module] "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
       return send(res, 200, t);
