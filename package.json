@@ -5,6 +5,7 @@
   "type": "module",
   "description": "Wire spike: Claude Code as a long-lived child process filling a world's slots.",
   "scripts": {
+    "app": "electron electron/main.js",
     "start": "node server.js",
     "check-fixture": "node tools/check-fixture.mjs",
     "capture-fixture": "node tools/capture-fixture.mjs"
