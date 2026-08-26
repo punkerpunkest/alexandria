@@ -47,9 +47,16 @@ quicksort, covalent bonding):
 > A three-line line at the same body length would collide. The layout has no
 > mechanism to prevent that — the split-to-next-screen rule is still the real fix.
 
-Still designed-only: the **opening** and **boundary** question screens. Both are
-screens with no beat behind them, and `src/paginate.js` maps beats to screens one to
-one, so they need a beatless screen type first.
+~~Still designed-only: the opening and boundary question screens.~~ **Both built,
+25 Aug** — see "The ask screen" near the end of this file. `pagination.closeWith`
+appends a beatless boundary screen carrying module-level channels, and the *same*
+template paints cold-start stage 0. One template, two contexts; the only difference is
+whether the line comes from the model or the manifest.
+
+> [!warning] This file is chronological — read the END for current status
+> Everything below the "Motion" heading was appended later and **supersedes** the tables
+> above where they disagree. The current plan of record is
+> `Projects/Alexandria/Build Plans/Build Plan 2026-08-26.md`.
 
 ## What is settled
 
@@ -71,10 +78,10 @@ the other, so all of it must land **before** the fixture is captured.
 
 | Decision | State |
 |---|---|
-| `expression` values | Two, per Jordan 23 Aug. Implemented as `explaining` and `considering`; the names are still **mine, not confirmed** — renaming is a manifest edit plus two file renames |
+| ~~`expression` values~~ | **Five, settled 26 Aug:** `explaining`, `considering`, `highlighting`, `cautioning`, `encouraging`. `restrict` stays. See "Five expressions" at the end of this file — including why the fifth is `highlighting` and not `emphasising` |
 | `body` cap | **Settled 24 Aug: keep 300, and it is the world author's to tune.** The cap is enforced by the schema, not merely steering, so overflow is *prevented* rather than handled — there is no overflow system to build. Measured: 80 + 300 needs a stage ~610px tall; the chrome has produced 583 to 720. Lower it to ~270 only if you commit to supporting 583. Nothing to build |
 | `beats.min` / `max` | Still 3 / 6, and now means 3–6 **teaching** beats rather than 2–5 plus a quiz |
-| Screen types | Only `module` is declared. The opening and boundary **question screens** are designed but undeclared |
+| ~~Screen types~~ | **Built 25 Aug.** `module` and `ask` are both declared. `pagination.closeWith` appends the beatless boundary screen; the same template is cold-start stage 0 |
 | ~~Control + readout slots~~ | **Built and verified 23 Aug.** `data-slot="controls"` and `data-readout="progress"` are in the template, the projector renders the archetype's set into them, and the world's CSS dresses them |
 
 > [!danger] The question screens are an invariant, not a Cartoon feature

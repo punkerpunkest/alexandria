@@ -36,17 +36,6 @@ export function validate(world, out) {
         }
       }
 
-      // Cross-channel agreement, declared per channel so no channel name lands here.
-      // The flat asset resolver is `{set}-{name}`, so a per-character face set has to
-      // encode the character in its own value; this keeps the two from disagreeing.
-      if (ch.prefixedBy && v != null) {
-        const owner = b[ch.prefixedBy];
-        if (owner != null && !String(v).startsWith(`${owner}-`)) {
-          failures.push({ beat: i, field: name,
-            reason: `"${v}" does not belong to ${ch.prefixedBy} "${owner}"; it must start "${owner}-"` });
-        }
-      }
-
       // Manifest-declared restrictions: { "considering": "misconception" }.
       const kindFor = ch.restrict?.[v];
       if (kindFor && b.kind !== kindFor) {

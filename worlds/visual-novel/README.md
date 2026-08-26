@@ -18,10 +18,12 @@ full PSD composite to a max channel difference of 2/255.
     assets/face-<who>-<expr>.webp      the only thing a beat varies.
     assets/background-<slug>.webp
 
-Flat, because the projector resolves `/worlds/{id}/assets/{set}-{name}.{ext}` and has no
-path convention. That is why the face value carries the character (`mei-smug`) rather than
-living in a per-character folder — and why `speaker_face` declares `prefixedBy:
-"speaker_body"`, so the validator rejects Hana's face on Mei's body.
+Flat, because the projector resolves `/worlds/{id}/assets/{set}-{key}.{ext}` and has no
+path convention. The character therefore has to appear in the filename rather than in a
+folder — but *not* in the value the model picks. `speaker_face` declares
+`keyedBy: "speaker_body"`, so the model chooses from eleven expressions (`smug`) and the
+projector composes the key (`mei-smug`). Hana's face on Mei's body is unrepresentable
+rather than rejected after the fact, and the enum handed to the model is half the size.
 
 Accessories draw *above* Expression, so Mei's circle glasses are baked into her face
 overlays rather than her base. That is why her overlays are larger than Hana's.

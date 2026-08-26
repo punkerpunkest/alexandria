@@ -178,9 +178,16 @@ function el(html) {
 // Beat channels and module channels are both channels; only their scope differs.
 const channelFor = (key) => world.channels[key] ?? world.module?.channels?.[key];
 
-function assetUrl(set, name) {
-  const ext = world.assetFormat?.[set] ?? 'svg';
-  return `/worlds/${world.id}/assets/${set}-${name}.${ext}`;
+// An asset key is normally just the channel's value. A channel declaring `keyedBy`
+// composes its key from another channel's value first: the visual novel's faces are
+// per-character, so `keyedBy: "speaker_body"` turns "smile" into "mei-smile". The model
+// therefore picks from eleven expressions rather than twenty-two character-qualified
+// ones, and a face belonging to the wrong character is unrepresentable rather than
+// caught after the fact. Nothing here names a world; `keyedBy` comes from the manifest.
+function assetUrl(ch, name, values) {
+  const key = ch.keyedBy ? `${values[ch.keyedBy]}-${name}` : name;
+  const ext = world.assetFormat?.[ch.set] ?? 'svg';
+  return `/worlds/${world.id}/assets/${ch.set}-${key}.${ext}`;
 }
 
 // Attribute lookups are root-INCLUSIVE: a persisted element is frequently the
@@ -232,7 +239,7 @@ function fill(scopes, values) {
     // src to `mascot-undefined.webp`.
     if (!(key in values)) continue;
     const ch = channelFor(key);
-    if (ch?.set) slot.src = assetUrl(ch.set, values[key]);
+    if (ch?.set) slot.src = assetUrl(ch, values[key], values);
     else slot.textContent = values[key] ?? '';
   }
 }

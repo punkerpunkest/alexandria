@@ -58,8 +58,9 @@
     "speaker_face": {
       "kind": "asset",
       "set": "face",
-      "prefixedBy": "speaker_body",
-      "job": "The speaker's expression. MUST begin with the same name as speaker_body."
+      "keyedBy": "speaker_body",
+      "job": "The speaker's expression.",
+      "_keyedBy_note": "The asset key is composed as {speaker_body}-{value}, so the model chooses from eleven expressions rather than twenty-two character-qualified ones and a face belonging to the wrong character is UNREPRESENTABLE rather than caught afterwards. Replaced `prefixedBy`, which only validated the mismatch after the model made it."
     },
     "background": {
       "kind": "asset",
@@ -74,28 +75,17 @@
       "hana": "Hana, twin tails, dark hair, white seifuku. She asks, guesses, and is often wrong first."
     },
     "face": {
-      "mei-normal": "Mei: level and attentive. The default for a plain explanation.",
-      "mei-smile": "Mei: a small closed smile, warm and unhurried.",
-      "mei-pleased": "Mei: eyes closed, gently pleased. Use when something has just landed.",
-      "mei-laugh": "Mei: eyes closed, open-mouthed, delighted.",
-      "mei-delighted": "Mei: bright and open-mouthed, genuinely excited by the idea.",
-      "mei-shocked": "Mei: wide eyes, mouth open. Use when a result is genuinely surprising.",
-      "mei-sad": "Mei: downcast brows, quiet. Use when an approach did not work.",
-      "mei-angry": "Mei: brows down, mouth open. Rare, and only for a firm correction.",
-      "mei-smug": "Mei: one brow up, a small knowing smile. Use when the answer was obvious in hindsight.",
-      "mei-annoyed": "Mei: flat eyes, unimpressed. Use for a mistake that keeps coming back.",
-      "mei-sleepy": "Mei: heavy lids. Use sparingly, for a long or dry stretch.",
-      "hana-normal": "Hana: level and attentive. The default for a plain explanation.",
-      "hana-smile": "Hana: a small closed smile, warm and unhurried.",
-      "hana-pleased": "Hana: eyes closed, gently pleased. Use when something has just landed.",
-      "hana-laugh": "Hana: eyes closed, open-mouthed, delighted.",
-      "hana-delighted": "Hana: bright and open-mouthed, genuinely excited by the idea.",
-      "hana-shocked": "Hana: wide eyes, mouth open. Use when a result is genuinely surprising.",
-      "hana-sad": "Hana: downcast brows, quiet. Use when an approach did not work.",
-      "hana-angry": "Hana: brows down, mouth open. Rare, and only for a firm correction.",
-      "hana-smug": "Hana: one brow up, a small knowing smile. Use when the answer was obvious in hindsight.",
-      "hana-annoyed": "Hana: flat eyes, unimpressed. Use for a mistake that keeps coming back.",
-      "hana-sleepy": "Hana: heavy lids. Use sparingly, for a long or dry stretch."
+      "normal": "level and attentive. The default for a plain explanation.",
+      "smile": "a small closed smile, warm and unhurried.",
+      "pleased": "eyes closed, gently pleased. Use when something has just landed.",
+      "laugh": "eyes closed, open-mouthed, delighted.",
+      "delighted": "bright and open-mouthed, genuinely excited by the idea.",
+      "shocked": "wide eyes, mouth open. Use when a result is genuinely surprising.",
+      "sad": "downcast brows, quiet. Use when an approach did not work.",
+      "angry": "brows down, mouth open. Rare, and only for a firm correction.",
+      "smug": "one brow up, a small knowing smile. Use when the answer was obvious in hindsight.",
+      "annoyed": "flat eyes, unimpressed. Use for a mistake that keeps coming back.",
+      "sleepy": "heavy lids. Use sparingly, for a long or dry stretch."
     },
     "background": {
       "classroom-day": "an empty classroom in daylight, desks in rows. The default setting.",
