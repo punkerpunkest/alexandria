@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Generator } from './src/claude.js';
@@ -72,6 +72,20 @@ async function buildModule(question) {
   };
 }
 
+// One tag per line, nested by depth, so a snapshot diff is readable. Void elements and
+// text-bearing elements stay on one line; nothing here needs to be a real HTML parser.
+function indent(html) {
+  const parts = html.replace(/></g, '>\n<').split('\n');
+  let depth = 0;
+  return parts.map((line) => {
+    if (/^<\//.test(line)) depth--;
+    const out = '  '.repeat(Math.max(0, depth)) + line;
+    if (/^<[^/!]/.test(line) && !/\/>$/.test(line) && !/<\/[a-z-]+>$/.test(line)
+        && !/^<(img|br|hr|input|meta|link|source)\b/i.test(line)) depth++;
+    return out;
+  }).join('\n');
+}
+
 const send = (r, code, body, type = 'application/json') => {
   r.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' });
   r.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
@@ -85,9 +99,40 @@ createServer(async (req, res) => {
       for (const [k, p] of Object.entries(world.screens)) screens[k] = await readFile(join(worldDir, p), 'utf8');
       return send(res, 200, { world, screens, css: await readFile(join(worldDir, 'styles.css'), 'utf8') });
     }
+    // CAPTURE HARNESS, off unless SNAPSHOT=1. The projector is browser code, so the DOM
+    // snapshots in the golden fixture cannot be produced from Node. tools/capture-dom.md
+    // documents the run. Never enabled by `npm start`.
+    if (url.pathname === '/api/_snapshot' && req.method === 'POST' && process.env.SNAPSHOT === '1') {
+      const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
+      const { variant, snapshots } = JSON.parse(body);
+      const dir = join(ROOT, 'fixtures', 'dom', `${WORLD_ID}.${variant}`);
+      await mkdir(dir, { recursive: true });
+      for (const [name, html] of Object.entries(snapshots)) {
+        await writeFile(join(dir, `${name}.html`), indent(html) + '\n');
+      }
+      console.log(`[snapshot] ${WORLD_ID}.${variant}: ${Object.keys(snapshots).length} files`);
+      return send(res, 200, { written: Object.keys(snapshots).length, dir });
+    }
     if (url.pathname === '/api/module' && req.method === 'POST') {
       const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
-      const { question } = JSON.parse(body || '{}');
+      const { question, fixture } = JSON.parse(body || '{}');
+
+      // DETERMINISTIC MODE. `{ fixture: "max" }` renders the blessed module from
+      // fixtures/beats/ and never touches the adapter, so the app runs on zero quota.
+      // It is what the DOM snapshots capture, and what makes the chrome and projector
+      // workable without spending a student's subscription on every reload.
+      if (fixture) {
+        const mod = JSON.parse(await readFile(join(ROOT, 'fixtures', 'beats', `${WORLD_ID}.${fixture}.json`), 'utf8'));
+        console.log(`[module] fixture "${fixture}" -> ${mod.beats.length} beats, no model call`);
+        return send(res, 200, {
+          screens: paginate(world, mod.beats, mod),
+          degraded: false, remainingFailures: [],
+          metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(world, mod.beats),
+                     wallMs: 0, repairs: 0, attempts: 0, costUsd: 0, startupMs: gen.startupMs,
+                     apiKeySource: gen.apiKeySource, ttftMs: 0, cacheReadTokens: 0 },
+        });
+      }
+
       const t = await buildModule(question || 'Teach me something interesting.');
       console.log(`[module] "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
       return send(res, 200, t);

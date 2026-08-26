@@ -56,14 +56,22 @@ choices:
 Two subjects rather than one, for the same reason: a fixture written entirely from
 computer science bakes a subject shape into the reference every future agent reads.
 
-## Known gap
+## DOM snapshots
 
-**No DOM snapshots yet.** The projector is browser code with a shadow root, so
-capturing rendered output needs the app running rather than Node. Until those exist,
-the published attributes (`data-phase`, `data-nav`, `data-kind`, `data-changed`,
-`--motion-duration`) and `data-persist` hoisting are **unpinned**, and hoisting is the
-subtle one: persisted elements are lifted out of the screen, so a snapshot must capture
-the *stack*, not the screen, or a regression that stops hoisting passes green.
+`dom/{world}.{variant}/` holds the rendered output: every screen at `settled`, plus an
+`entering` snapshot in each direction the archetype allows. These pin the published
+attributes — `data-phase`, `data-nav`, `data-kind`, `data-changed` — and `data-persist`
+hoisting, which is the subtle one, since persisted elements are lifted out of the screen
+and a snapshot of the screen alone would miss them.
 
-The unknown-archetype throw in `public/app.js` is unreachable from Node for the same
-reason, and is recorded under `_browserSide` in `hostile/cases.json`.
+They cannot be checked by `npm run check-fixture`, because verifying them requires
+rendering. Procedure and normalisation rules are in `tools/capture-dom.md`; the check is
+that a re-run leaves `git diff fixtures/dom` empty.
+
+`?fixture=<variant>` runs the app from these beats with **no model call**, which is also
+how to work on the chrome without spending quota.
+
+## Still unpinned
+
+The unknown-archetype throw in `public/app.js`, recorded under `_browserSide` in
+`hostile/cases.json`. It needs a world with a bad manifest and a page load to reach.

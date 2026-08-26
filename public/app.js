@@ -484,10 +484,10 @@ function go(delta) {
 
 // Every path to a new module goes through here: the world's ask input, and nothing
 // else. The chrome no longer hosts an ask — see `Alexandria - Design`.
-async function askFor(question) {
+async function askFor(question, fixture = null) {
   if (busy) return;
   busy = true;
-  setStatus('writing the module…');
+  setStatus(fixture ? `rendering fixture "${fixture}"…` : 'writing the module…');
   // The world stays on screen while this runs. `Alexandria - Cold Start` stage 0 is
   // "never blocks" and "painted locally with no model call at all"; blanking the
   // stage to a spinner would throw that away at exactly the moment it matters.
@@ -496,7 +496,7 @@ async function askFor(question) {
   const t0 = performance.now();
   const data = await fetch('/api/module', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(fixture ? { fixture } : { question }),
   }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
 
   busy = false;
@@ -538,6 +538,12 @@ function openingFrame() {
 }
 
 if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint at stage 0');
+
+// DETERMINISTIC MODE. `?fixture=max` renders the blessed module with no model call,
+// so the app is runnable on zero quota and the DOM snapshots have a stable subject.
+// See fixtures/README.md.
+const fixtureParam = new URLSearchParams(location.search).get('fixture');
+if (fixtureParam) askFor(null, fixtureParam);
 
 $('#next').onclick = () => go(+1);
 $('#back').onclick = () => { if (archetype.controls.back) go(-1); };
