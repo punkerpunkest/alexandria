@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSchema, buildSystemPrompt } from '../src/schema.js';
 import { paginate, readingTimeMs } from '../src/paginate.js';
 import { validate } from '../src/validate.js';
+import { resolveAsset, declaredAssets } from '../src/assets.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -47,6 +48,35 @@ for (const id of ['cartoon', 'visual-novel']) {
     reading[variant] = readingTimeMs(w, mod.beats, mod);
   }
   eq(`${id}/reading-time.json`, reading, await read(`${id}/reading-time.json`));
+}
+
+// ---- 1b. the two interface seams ---------------------------------------------
+// The asset resolver is the ONLY place a path is built, so the check is that it
+// reproduces every asset URL in the blessed snapshots. A contract that lives as string
+// concatenation cannot be checked; this is what turns it into one.
+for (const id of ['cartoon', 'visual-novel']) {
+  const w = await world(id);
+  const declared = new Set(Object.values(declaredAssets(w)).flatMap((m) => Object.values(m)));
+  const used = new Set();
+  for (const dir of (await readdir(join(F, 'dom'))).filter((d) => d.startsWith(id + '.'))) {
+    for (const f of await readdir(join(F, 'dom', dir))) {
+      const html = await read(`dom/${dir}/${f}`);
+      for (const m of html.matchAll(/src="([^"]*\/assets\/[^"]+)"/g)) used.add(m[1]);
+    }
+  }
+  const missing = [...used].filter((u) => !declared.has(u));
+  eq(`${id}: every asset URL in the snapshots is one the resolver produces`,
+     JSON.stringify(missing), '[]');
+  eq(`${id}: the snapshots use at least one asset`, String(used.size > 0), 'true');
+}
+
+// The chrome-to-host surface carries exactly these calls, and degrades to a stub off-app.
+{
+  const { host, isApp } = await import('../public/host.js');
+  eq('host surface: the call list is fixed',
+     JSON.stringify(Object.keys(host).sort()), JSON.stringify(['close', 'host', 'minimize', 'revealWorlds', 'worldsDir']));
+  eq('host surface: outside the app it is the browser stub', `${host.host} ${isApp}`, 'browser false');
+  eq('host surface: a call off-app resolves rather than throwing', String(await host.revealWorlds()), 'null');
 }
 
 // ---- 2. the hostile cases ----------------------------------------------------

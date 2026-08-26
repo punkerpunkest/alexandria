@@ -137,7 +137,12 @@ createServer(async (req, res) => {
       console.log(`[module] "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
       return send(res, 200, t);
     }
-    const file = url.pathname.startsWith('/worlds/')
+    // `src/assets.js` is shared by the loader and the projector on purpose — one
+    // definition of an asset path, so the on-disk check and the render cannot drift.
+    // Named explicitly rather than serving src/, which would also expose the adapter.
+    const file = url.pathname === '/src/assets.js'
+      ? join(ROOT, 'src', 'assets.js')
+      : url.pathname.startsWith('/worlds/')
       ? join(ROOT, url.pathname)
       : join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);
     return send(res, 200, await readFile(file), MIME[extname(file)] ?? 'application/octet-stream');
