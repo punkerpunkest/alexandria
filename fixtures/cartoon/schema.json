@@ -1,0 +1,61 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "beats": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "concept",
+              "misconception"
+            ],
+            "description": "concept teaches, misconception names the wrong turn most people take."
+          },
+          "mascot_line": {
+            "type": "string",
+            "maxLength": 80,
+            "description": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard."
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight — this card does not scroll."
+          },
+          "expression": {
+            "type": "string",
+            "enum": [
+              "explaining",
+              "considering",
+              "highlighting",
+              "cautioning",
+              "encouraging"
+            ],
+            "description": "The teacher's pose. Options: explaining = open-handed, mid-explanation, warm. The everyday pose.; considering = hand to chin, weighing something up. Use where the point is that this is the tricky part.; highlighting = one finger raised. Use for the single sentence in this module most worth remembering.; cautioning = palm raised toward the student. Use before a step that needs care, or where people commonly slip.; encouraging = a thumbs up. Use when something has just landed, or the student is past the hard part."
+          }
+        },
+        "required": [
+          "kind",
+          "mascot_line",
+          "body",
+          "expression"
+        ]
+      }
+    },
+    "ask_line": {
+      "type": "string",
+      "maxLength": 90,
+      "description": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question."
+    }
+  },
+  "required": [
+    "beats",
+    "ask_line"
+  ]
+}

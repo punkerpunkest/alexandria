@@ -1,0 +1,47 @@
+{
+  "_world": "cartoon",
+  "_question": "Why does ice float on water?",
+  "_model": "claude-sonnet-5",
+  "_metrics": {
+    "ttftMs": 8348,
+    "durationMs": 8405,
+    "apiMs": 26913,
+    "costUsd": 0.0635241,
+    "outputTokens": 786,
+    "cacheReadTokens": 2668
+  },
+  "_validationFailures": [],
+  "beats": [
+    {
+      "kind": "concept",
+      "mascot_line": "Ice floats because it is less dense than the liquid water beneath it.",
+      "body": "Floating is just a density contest. Anything less dense than the fluid around it rises to the top, and solid ice is about 9% less dense than liquid water. That small gap is enough to keep every iceberg and ice cube riding on the surface instead of sinking.",
+      "expression": "explaining"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "Water molecules lock into a spread-out lattice when they freeze.",
+      "body": "Each water molecule can hydrogen-bond with four neighbors. In liquid water those bonds constantly break and reform, letting molecules pack close together. In ice, the bonds freeze into a rigid open hexagonal lattice, holding molecules farther apart than they were in the liquid.",
+      "expression": "explaining"
+    },
+    {
+      "kind": "misconception",
+      "mascot_line": "Most solids sink in their own liquid, ice is the odd one out.",
+      "body": "It's easy to assume freezing always makes something denser, since solids are usually more tightly packed than liquids. Water breaks that pattern: the hydrogen-bond lattice forces molecules into a more open structure than the liquid, so the solid takes up more space for the same mass.",
+      "expression": "considering"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "Same number of molecules, more space, so lower density.",
+      "body": "Density is just mass divided by volume. Freezing doesn't add or remove molecules, it only rearranges them into that open lattice, so the mass stays the same while the volume grows. More volume for the same mass means density drops.",
+      "expression": "highlighting"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "This quirk keeps lakes and oceans alive in winter.",
+      "body": "Because ice floats instead of sinking, it forms an insulating cap on top of a lake rather than filling it from the bottom up. The liquid water underneath stays close to 4 degrees Celsius, letting fish and other life survive through the cold season.",
+      "expression": "encouraging"
+    }
+  ],
+  "ask_line": "Want to see why water is densest at 4 degrees instead of at its freezing point?"
+}

@@ -1,0 +1,67 @@
+{
+  "_note": "One case per failure site in the runtime. Completeness rule: every `throw new Error` in src/ and every `failures.push` in validate.js must be reached by a case here. `patch` is deep-merged over the named world's manifest; `module` replaces the blessed module. `throws` asserts an exact thrown message; `failures` asserts the exact reasons validate() returns, in order.",
+  "cases": [
+    { "id": "policy-unknown", "site": "paginate.js", "world": "cartoon",
+      "patch": { "pagination": { "policy": "two-beats-per-screen" } },
+      "throws": "world \"cartoon\": unknown pagination policy \"two-beats-per-screen\". Known policies: one-beat-per-screen" },
+
+    { "id": "screenfor-no-default", "site": "paginate.js", "world": "cartoon",
+      "patch": { "pagination": { "screenFor": { "default": null } } },
+      "throws": "world \"cartoon\": pagination.screenFor declares no screen type for beat kind \"concept\", and no default" },
+
+    { "id": "screenfor-undeclared", "site": "paginate.js", "world": "cartoon",
+      "patch": { "pagination": { "screenFor": { "default": "slide" } } },
+      "throws": "world \"cartoon\": pagination.screenFor maps to screen type \"slide\", which is not declared in world.screens" },
+
+    { "id": "closewith-undeclared", "site": "paginate.js", "world": "cartoon",
+      "patch": { "pagination": { "closeWith": "boundary" } },
+      "throws": "world \"cartoon\": pagination.closeWith names screen type \"boundary\", which is not declared in world.screens" },
+
+    { "id": "channel-kind-unknown", "site": "schema.js", "world": "cartoon",
+      "patch": { "channels": { "body": { "kind": "markdown" } } },
+      "throws": "world \"cartoon\": channel \"body\" has unknown kind \"markdown\"" },
+
+    { "id": "no-beats", "site": "validate.js", "world": "cartoon",
+      "module": { "beats": [], "ask_line": "What next?" },
+      "failures": [{ "scope": "module", "reason": "no beats returned" }] },
+
+    { "id": "text-over-cap", "site": "validate.js", "world": "cartoon",
+      "beatPatch": { "0": { "mascot_line": "This mascot line is deliberately far longer than the eighty character cap the world declares for it." } },
+      "failures": [{ "beat": 0, "field": "mascot_line", "reason": "100 chars, cap is 80" }] },
+
+    { "id": "enum-outside-set", "site": "validate.js", "world": "cartoon",
+      "beatPatch": { "0": { "expression": "emphasising" } },
+      "failures": [{ "beat": 0, "field": "expression", "reason": "\"emphasising\" is not one of explaining, considering, highlighting, cautioning, encouraging" }] },
+
+    { "id": "restrict-violated", "site": "validate.js", "world": "cartoon",
+      "beatPatch": { "0": { "expression": "considering" } },
+      "failures": [{ "beat": 0, "field": "expression", "reason": "\"considering\" is only allowed on a misconception beat" }] },
+
+    { "id": "mustbeclaim-violated", "site": "validate.js", "world": "cartoon",
+      "beatPatch": { "0": { "mascot_line": "Does a segment tree really precompute every range?" } },
+      "failures": [{ "beat": 0, "field": "mascot_line", "reason": "is a question; it must be a claim" }] },
+
+    { "id": "hold-drifts", "site": "validate.js", "world": "visual-novel",
+      "beatPatch": { "1": { "background": "classroom-day" } },
+      "failures": [{ "beat": 1, "field": "background", "reason": "\"classroom-day\" but background is held for the module; it must stay \"library\"" }] },
+
+    { "id": "module-channel-missing", "site": "validate.js", "world": "cartoon",
+      "modulePatch": { "ask_line": "" },
+      "failures": [{ "scope": "module", "reason": "ask_line is missing" }] },
+
+    { "id": "module-channel-over-cap", "site": "validate.js", "world": "cartoon",
+      "modulePatch": { "ask_line": "Would you like to see how the tree is built from the bottom up, or how a single update ripples all the way back to the root of it?" },
+      "failures": [{ "scope": "module", "reason": "ask_line is 130 chars, cap is 90" }] },
+
+    { "id": "mustask-violated", "site": "validate.js", "world": "cartoon",
+      "modulePatch": { "ask_line": "Tell me where you want to go next." },
+      "failures": [{ "scope": "module", "reason": "ask_line must end in a question" }] },
+
+    { "id": "required-kind-missing", "site": "validate.js", "world": "cartoon",
+      "patch": { "beats": { "require": ["worked-step"] } },
+      "failures": [{ "scope": "module", "reason": "no worked-step beat in the module" }] }
+  ],
+  "_browserSide": [
+    { "id": "archetype-unknown", "site": "public/app.js", "note": "An unknown `archetype` throws at module load: `unknown archetype \"x\"`. Not reachable from Node, because the projector is browser code. Covered by the DOM snapshot suite instead." }
+  ]
+}

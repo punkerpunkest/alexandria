@@ -1,0 +1,59 @@
+{
+  "_world": "visual-novel",
+  "_question": "Why does ice float on water?",
+  "_model": "claude-sonnet-5",
+  "_metrics": {
+    "ttftMs": 6378,
+    "durationMs": 6442,
+    "apiMs": 13183,
+    "costUsd": 0.03369,
+    "outputTokens": 556,
+    "cacheReadTokens": 2120
+  },
+  "_validationFailures": [],
+  "beats": [
+    {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "normal",
+      "background": "classroom-day",
+      "line": "Ice floats, so it must just be lighter than water somehow, right?"
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "smile",
+      "background": "classroom-day",
+      "line": "Not lighter, less dense. Same substance, but the molecules end up spaced further apart when it freezes."
+    },
+    {
+      "kind": "misconception",
+      "speaker_body": "hana",
+      "speaker_face": "shocked",
+      "background": "classroom-day",
+      "line": "Wait, freezing spreads them out? I figured cooling always packs things tighter."
+    },
+    {
+      "kind": "misconception",
+      "speaker_body": "mei",
+      "speaker_face": "smug",
+      "background": "classroom-day",
+      "line": "That is the part everyone assumes. It is true for most substances, but water is the odd one out."
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "normal",
+      "background": "classroom-day",
+      "line": "Water molecules form a hexagonal lattice when they freeze, and that shape leaves open gaps between them."
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "pleased",
+      "background": "classroom-day",
+      "line": "So the same mass takes up more space as ice, which makes it less dense than the liquid it came from."
+    }
+  ],
+  "ask_line": "Want to see why that lattice shape forms in the first place?"
+}

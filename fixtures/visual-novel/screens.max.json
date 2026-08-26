@@ -1,0 +1,171 @@
+[
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "concept",
+        "speaker_body": "hana",
+        "speaker_face": "normal",
+        "background": "library",
+        "line": "So the tree stores a range in every node. That is the whole trick."
+      }
+    ],
+    "fill": {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "normal",
+      "background": "library",
+      "line": "So the tree stores a range in every node. That is the whole trick."
+    }
+  },
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "concept",
+        "speaker_body": "mei",
+        "speaker_face": "smile",
+        "background": "library",
+        "line": "Right. The root covers the whole array, and each child splits its parent's range in half."
+      }
+    ],
+    "fill": {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "smile",
+      "background": "library",
+      "line": "Right. The root covers the whole array, and each child splits its parent's range in half."
+    }
+  },
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "concept",
+        "speaker_body": "hana",
+        "speaker_face": "normal",
+        "background": "library",
+        "line": "So the leaves end up being single elements, since you keep halving down to size one."
+      }
+    ],
+    "fill": {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "normal",
+      "background": "library",
+      "line": "So the leaves end up being single elements, since you keep halving down to size one."
+    }
+  },
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "concept",
+        "speaker_body": "mei",
+        "speaker_face": "pleased",
+        "background": "library",
+        "line": "Exactly. And a query walks down asking one question per node: does my range fit entirely inside yours?"
+      }
+    ],
+    "fill": {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "pleased",
+      "background": "library",
+      "line": "Exactly. And a query walks down asking one question per node: does my range fit entirely inside yours?"
+    }
+  },
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "misconception",
+        "speaker_body": "hana",
+        "speaker_face": "shocked",
+        "background": "library",
+        "line": "Wait, so it does not visit every leaf in the query range one by one?"
+      }
+    ],
+    "fill": {
+      "kind": "misconception",
+      "speaker_body": "hana",
+      "speaker_face": "shocked",
+      "background": "library",
+      "line": "Wait, so it does not visit every leaf in the query range one by one?"
+    }
+  },
+  {
+    "type": "scene",
+    "beats": [
+      {
+        "kind": "misconception",
+        "speaker_body": "mei",
+        "speaker_face": "smug",
+        "background": "library",
+        "line": "That is the part everyone gets backwards. It stops early whenever a node fits completely inside your range, so it only ever touches about log n of them. That is the entire speedup."
+      }
+    ],
+    "fill": {
+      "kind": "misconception",
+      "speaker_body": "mei",
+      "speaker_face": "smug",
+      "background": "library",
+      "line": "That is the part everyone gets backwards. It stops early whenever a node fits completely inside your range, so it only ever touches about log n of them. That is the entire speedup."
+    }
+  },
+  {
+    "type": "ask",
+    "beats": [],
+    "fill": {
+      "_world": "visual-novel",
+      "_question": "How does a segment tree answer a range query in log n time?",
+      "_model": "claude-sonnet-5",
+      "beats": [
+        {
+          "kind": "concept",
+          "speaker_body": "hana",
+          "speaker_face": "normal",
+          "background": "library",
+          "line": "So the tree stores a range in every node. That is the whole trick."
+        },
+        {
+          "kind": "concept",
+          "speaker_body": "mei",
+          "speaker_face": "smile",
+          "background": "library",
+          "line": "Right. The root covers the whole array, and each child splits its parent's range in half."
+        },
+        {
+          "kind": "concept",
+          "speaker_body": "hana",
+          "speaker_face": "normal",
+          "background": "library",
+          "line": "So the leaves end up being single elements, since you keep halving down to size one."
+        },
+        {
+          "kind": "concept",
+          "speaker_body": "mei",
+          "speaker_face": "pleased",
+          "background": "library",
+          "line": "Exactly. And a query walks down asking one question per node: does my range fit entirely inside yours?"
+        },
+        {
+          "kind": "misconception",
+          "speaker_body": "hana",
+          "speaker_face": "shocked",
+          "background": "library",
+          "line": "Wait, so it does not visit every leaf in the query range one by one?"
+        },
+        {
+          "kind": "misconception",
+          "speaker_body": "mei",
+          "speaker_face": "smug",
+          "background": "library",
+          "line": "That is the part everyone gets backwards. It stops early whenever a node fits completely inside your range, so it only ever touches about log n of them. That is the entire speedup."
+        }
+      ],
+      "ask_line": "Want to see how that same halving trick handles an update, when one leaf changes and the rest must follow too?",
+      "_curation": "Generated with claude-sonnet-5, then curated. Beat counts pinned to the world's declared min/max; the .max module's text is padded to the exact channel caps, because the panel clearance in world.json viewport._measured was calibrated at the caps and the projector's overflow check exists to catch that case. Not a sample of typical output; a coverage artefact."
+    }
+  }
+]

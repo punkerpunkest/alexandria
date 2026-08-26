@@ -1,0 +1,53 @@
+{
+  "_world": "cartoon",
+  "_question": "How does a segment tree answer a range query in log n time?",
+  "_model": "claude-sonnet-5",
+  "_metrics": {
+    "ttftMs": 10958,
+    "durationMs": 17412,
+    "apiMs": 18524,
+    "costUsd": 0.0452337,
+    "outputTokens": 1849,
+    "cacheReadTokens": 1649
+  },
+  "_validationFailures": [],
+  "beats": [
+    {
+      "kind": "concept",
+      "mascot_line": "A segment tree precomputes answers for ranges, not just single points.",
+      "body": "Each node in the tree stores the answer for some contiguous chunk of the array, like a sum or a minimum. The leaves cover single elements, and every parent covers the union of its two children's ranges. Build it once, and every chunk size you'd ever need is already sitting there waiting.",
+      "expression": "explaining"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "Any range can be broken into at most O(log n) of these precomputed chunks.",
+      "body": "Think of the array split into halves, quarters, eighths, all the way down. A query range almost never lines up perfectly with one chunk, but it always lines up with a small handful of them stacked at different sizes. Combine those few answers and you have the answer for the whole range.",
+      "expression": "explaining"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "The query walks down the tree, splitting only where the range demands it.",
+      "body": "Starting at the root, if a node's range sits entirely inside the query, you grab its stored answer and stop descending there. If it's entirely outside, you ignore it. Only when a node's range partly overlaps the query do you recurse into its two children.",
+      "expression": "highlighting"
+    },
+    {
+      "kind": "misconception",
+      "mascot_line": "The tree does not visit every element, it visits every level.",
+      "body": "It's tempting to think a range query still has to touch each item in the range. It doesn't. Because ranges split into halves, the recursion only goes about log n levels deep before every piece is fully inside or fully outside the query.",
+      "expression": "considering"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "Each level only splits at the two edges of your query.",
+      "body": "Picture the query's left and right boundaries cutting through the tree. On each level, only the nodes straddling those two edges need to recurse further; everything strictly inside or outside resolves immediately, capping the work per level at a small constant.",
+      "expression": "encouraging"
+    },
+    {
+      "kind": "concept",
+      "mascot_line": "Tree height is log n, and that bound is the whole speedup.",
+      "body": "A segment tree over n elements has depth about log2(n), since each level halves the range size. Bounded work per level times log n levels gives total query time proportional to log n instead of n.",
+      "expression": "highlighting"
+    }
+  ],
+  "ask_line": "Want to see how building the tree itself works, or how updates ripple back up?"
+}

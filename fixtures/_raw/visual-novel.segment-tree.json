@@ -1,0 +1,59 @@
+{
+  "_world": "visual-novel",
+  "_question": "How does a segment tree answer a range query in log n time?",
+  "_model": "claude-sonnet-5",
+  "_metrics": {
+    "ttftMs": 5766,
+    "durationMs": 5798,
+    "apiMs": 6763,
+    "costUsd": 0.021119999999999996,
+    "outputTokens": 494,
+    "cacheReadTokens": 0
+  },
+  "_validationFailures": [],
+  "beats": [
+    {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "normal",
+      "background": "library",
+      "line": "So the tree stores a range in every node. That is the whole trick."
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "smile",
+      "background": "library",
+      "line": "Right. The root covers the whole array, and each child splits its parent's range in half."
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "hana",
+      "speaker_face": "normal",
+      "background": "library",
+      "line": "So the leaves end up being single elements, since you keep halving down to size one."
+    },
+    {
+      "kind": "concept",
+      "speaker_body": "mei",
+      "speaker_face": "pleased",
+      "background": "library",
+      "line": "Exactly. And a query walks down asking one question per node: does my range fit entirely inside yours?"
+    },
+    {
+      "kind": "misconception",
+      "speaker_body": "hana",
+      "speaker_face": "shocked",
+      "background": "library",
+      "line": "Wait, so it does not visit every leaf in the query range one by one?"
+    },
+    {
+      "kind": "misconception",
+      "speaker_body": "mei",
+      "speaker_face": "smug",
+      "background": "library",
+      "line": "That is the part everyone gets backwards. It stops early whenever a node fits completely, so it only ever touches about log n of them."
+    }
+  ],
+  "ask_line": "Want to see how that same halving trick handles an update?"
+}
