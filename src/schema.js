@@ -25,7 +25,12 @@ export function buildSchema(world) {
     kind: {
       type: 'string',
       enum: world.beats.kinds,
-      description: 'concept teaches, misconception names the wrong turn most people take.',
+      // The world names its own beat kinds, so the world explains them. This line used to
+      // read 'concept teaches, misconception names the wrong turn most people take' —
+      // Alexandria asserting a vocabulary it had decided not to own, and actively wrong for
+      // any world declaring different kinds. `beats.job` is optional: a world that does not
+      // declare one gets a description naming no kind at all.
+      description: world.beats.job ?? 'Which kind of beat this is.',
     },
   };
   const required = ['kind'];

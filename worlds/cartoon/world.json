@@ -19,7 +19,8 @@
     "kinds": [
       "concept",
       "misconception"
-    ]
+    ],
+    "job": "concept teaches the thing itself. misconception names the wrong turn most people take here, so the student recognises it when they make it."
   },
   "pagination": {
     "policy": "one-beat-per-screen",
