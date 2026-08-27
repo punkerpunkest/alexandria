@@ -16,7 +16,7 @@
               "concept",
               "misconception"
             ],
-            "description": "concept teaches, misconception names the wrong turn most people take."
+            "description": "concept carries one step of the explanation, in the order a reader needs them. misconception is the section that stops to name the wrong turn most readers take here, before the article goes on."
           },
           "prose": {
             "type": "string",

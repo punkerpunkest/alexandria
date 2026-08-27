@@ -8,12 +8,16 @@
 // language is the only kind they can speak. Growing the published vocabulary is
 // a change to this file, which is why it is designed against the visual novel
 // rather than against whichever world happens to exist.
+import { resolveAsset } from '/src/assets.js';
 // The plotter is runtime knowledge, in the same category as the archetype map below:
 // a world declares that a slot holds a figure, and the runtime knows what a figure is.
 // It lives in `public/` because the browser is where it draws, and `src/schema.js` and
 // `src/validate.js` import the grammar FROM here rather than restating it, so the
 // enum the model is given and the shapes the plotter can draw cannot drift apart.
 import { plot } from '/plot.js';
+// `public/host.js` is the chrome-to-host surface. It is deliberately NOT imported here:
+// the projector never talks to the application, and this file already uses `host` for the
+// shadow host, which is the older meaning and therefore the one that keeps the word.
 
 const $ = (s) => document.querySelector(s);
 const stage = $('#stage');
@@ -201,17 +205,10 @@ function el(html) {
 // Beat channels and module channels are both channels; only their scope differs.
 const channelFor = (key) => world.channels[key] ?? world.module?.channels?.[key];
 
-// An asset key is normally just the channel's value. A channel declaring `keyedBy`
-// composes its key from another channel's value first: the visual novel's faces are
-// per-character, so `keyedBy: "speaker_body"` turns "smile" into "mei-smile". The model
-// therefore picks from eleven expressions rather than twenty-two character-qualified
-// ones, and a face belonging to the wrong character is unrepresentable rather than
-// caught after the fact. Nothing here names a world; `keyedBy` comes from the manifest.
-function assetUrl(ch, name, values) {
-  const key = ch.keyedBy ? `${values[ch.keyedBy]}-${name}` : name;
-  const ext = world.assetFormat?.[ch.set] ?? 'svg';
-  return `/worlds/${world.id}/assets/${ch.set}-${key}.${ext}`;
-}
+// Asset URLs are the loader's business, not the projector's. This file no longer knows
+// about the `assets/` folder, the hyphen, the flat layout, the scheme, or the version
+// segment that versioned installs will add. See `Alexandria - Storage`.
+const assetUrl = (ch, name, values) => resolveAsset(world, ch, name, values);
 
 // Attribute lookups are root-INCLUSIVE: a persisted element is frequently the
 // slot itself (Cartoon's teacher is one <img> carrying both data-persist and

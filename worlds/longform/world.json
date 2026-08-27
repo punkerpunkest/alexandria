@@ -10,7 +10,8 @@
     "kinds": [
       "concept",
       "misconception"
-    ]
+    ],
+    "job": "concept carries one step of the explanation, in the order a reader needs them. misconception is the section that stops to name the wrong turn most readers take here, before the article goes on."
   },
   "pagination": {
     "policy": "one-beat-per-screen",

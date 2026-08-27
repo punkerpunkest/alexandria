@@ -16,7 +16,7 @@
               "concept",
               "misconception"
             ],
-            "description": "concept teaches, misconception names the wrong turn most people take."
+            "description": "concept teaches the thing itself. misconception names the wrong turn most people take here, so the student recognises it when they make it."
           },
           "mascot_line": {
             "type": "string",

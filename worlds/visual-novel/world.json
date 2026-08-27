@@ -10,7 +10,8 @@
     "kinds": [
       "concept",
       "misconception"
-    ]
+    ],
+    "job": "concept is one of them explaining or working something out. misconception is one of them getting it wrong in the way most people do, before the other corrects it."
   },
   "pagination": {
     "policy": "one-beat-per-screen",

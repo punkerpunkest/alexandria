@@ -16,7 +16,7 @@
               "concept",
               "misconception"
             ],
-            "description": "concept teaches, misconception names the wrong turn most people take."
+            "description": "concept is one of them explaining or working something out. misconception is one of them getting it wrong in the way most people do, before the other corrects it."
           },
           "line": {
             "type": "string",
