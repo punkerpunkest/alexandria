@@ -83,14 +83,14 @@
       "world": "cartoon",
       "beatPatch": {
         "0": {
-          "mascot_line": "This mascot line is deliberately far longer than the eighty character cap the world declares for it."
+          "mascot_line": "This mascot line is deliberately far longer than the one hundred and forty character cap that the world declares for it, so the validator's length backstop is still reached."
         }
       },
       "failures": [
         {
           "beat": 0,
           "field": "mascot_line",
-          "reason": "100 chars, cap is 80"
+          "reason": "173 chars, cap is 140"
         }
       ]
     },
@@ -181,12 +181,12 @@
       "site": "validate.js",
       "world": "cartoon",
       "modulePatch": {
-        "ask_line": "Would you like to see how the tree is built from the bottom up, or how a single update ripples all the way back to the root of it?"
+        "ask_line": "Would you like to see how the tree is built from the bottom up, or how a single update ripples all the way back to the root of it, and what that costs you in practice on a large input?"
       },
       "failures": [
         {
           "scope": "module",
-          "reason": "ask_line is 130 chars, cap is 90"
+          "reason": "ask_line is 184 chars, cap is 180"
         }
       ]
     },

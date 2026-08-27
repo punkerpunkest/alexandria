@@ -5,7 +5,7 @@
     "beats": {
       "type": "array",
       "minItems": 3,
-      "maxItems": 6,
+      "maxItems": 10,
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -20,13 +20,13 @@
           },
           "mascot_line": {
             "type": "string",
-            "maxLength": 80,
-            "description": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard."
+            "maxLength": 140,
+            "description": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard. Aim for about twenty words."
           },
           "body": {
             "type": "string",
-            "maxLength": 300,
-            "description": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight — this card does not scroll."
+            "maxLength": 340,
+            "description": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight — this card does not scroll. Aim for about fifty words."
           },
           "expression": {
             "type": "string",
@@ -50,8 +50,8 @@
     },
     "ask_line": {
       "type": "string",
-      "maxLength": 90,
-      "description": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question."
+      "maxLength": 180,
+      "description": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question. Aim for about twenty-five words."
     }
   },
   "required": [

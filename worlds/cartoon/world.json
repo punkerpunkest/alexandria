@@ -15,7 +15,7 @@
   },
   "beats": {
     "min": 3,
-    "max": 6,
+    "max": 10,
     "kinds": [
       "concept",
       "misconception"
@@ -46,14 +46,14 @@
   "channels": {
     "mascot_line": {
       "kind": "text",
-      "maxLength": 80,
-      "job": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard.",
+      "maxLength": 140,
+      "job": "The one sentence worth remembering. A claim, never a question. The sentence you would write on a flashcard. Aim for about twenty words.",
       "mustBeClaim": true
     },
     "body": {
       "kind": "text",
-      "maxLength": 300,
-      "job": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight \u2014 this card does not scroll."
+      "maxLength": 340,
+      "job": "The elaboration underneath. Two or three sentences that earn the claim above, with a concrete example wherever one exists. Keep it tight \u2014 this card does not scroll. Aim for about fifty words."
     },
     "expression": {
       "kind": "enum",
@@ -99,8 +99,8 @@
     "channels": {
       "ask_line": {
         "kind": "text",
-        "maxLength": 90,
-        "job": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question.",
+        "maxLength": 180,
+        "job": "The teacher's closing line on the ask screen, spoken AFTER the last beat. One or two short sentences: land what was just taught, then ask the student where they want to go next. It must end in a question. Aim for about twenty-five words.",
         "mustAsk": true,
         "opening": "What do you want to learn today?"
       }
