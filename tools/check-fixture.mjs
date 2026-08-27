@@ -70,13 +70,25 @@ for (const id of ['cartoon', 'visual-novel']) {
   eq(`${id}: the snapshots use at least one asset`, String(used.size > 0), 'true');
 }
 
-// The chrome-to-host surface carries exactly these calls, and degrades to a stub off-app.
+// The chrome-to-host surface carries exactly these members, and degrades to a stub
+// off-app. Two lists rather than one since 27 Aug: CALLS are things the chrome asks for
+// and EVENTS are things the host tells it. Growing either is a three-file change by
+// design, and this check is the thing that makes the growth visible — so when it goes
+// red, the question is whether the new member was meant, never how to quiet it.
 {
   const { host, isApp } = await import('../public/host.js');
   eq('host surface: the call list is fixed',
-     JSON.stringify(Object.keys(host).sort()), JSON.stringify(['close', 'host', 'minimize', 'revealWorlds', 'worldsDir']));
+     JSON.stringify(Object.keys(host).filter((k) => k !== 'host' && !k.startsWith('on')).sort()),
+     JSON.stringify(['close', 'minimize', 'revealWorlds', 'worldsDir']));
+  eq('host surface: the event list is fixed',
+     JSON.stringify(Object.keys(host).filter((k) => k.startsWith('on')).sort()),
+     JSON.stringify(['onFullscreen']));
   eq('host surface: outside the app it is the browser stub', `${host.host} ${isApp}`, 'browser false');
   eq('host surface: a call off-app resolves rather than throwing', String(await host.revealWorlds()), 'null');
+  // An event off-app must be subscribable and simply never fire. If this threw, every
+  // chrome that listens for one would break the moment it ran in a browser.
+  eq('host surface: an event off-app subscribes without throwing',
+     String(host.onFullscreen(() => {})), 'undefined');
 }
 
 // ---- 2. the hostile cases ----------------------------------------------------
