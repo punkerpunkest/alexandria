@@ -1,19 +1,172 @@
 <meta charset="utf-8">
-<title>Alexandria spike</title>
+<title>Alexandria</title>
 <link rel="stylesheet" href="/app.css">
-<main>
-  <header>
-    <span class="brand">Alexandria <em id="worldname">—</em></span>
-    <span id="progress" class="progress"></span>
+
+<!-- THE CHROME. Everything outside a world. See the vault note `Alexandria - Design`
+     and the Figma file "Alexandria — Chrome", Anatomy page — this markup is those
+     boards, and the four it covers are: session/world mounted, session/no world
+     mounted, settings, settings/no worlds installed.
+
+     SEVEN HOOKS BELONG TO THE PROJECTOR, not to the chrome: #stage, #worldname,
+     #progress, #metrics, #back, #next, and the body classes `world-controls` and
+     `world-progress`. `public/app.js` reads all seven at module scope, so they must
+     exist in this document before it runs, and none of them may be renamed here.
+     CONTRACT.md puts app.js in another lane; this file is the chrome's side of that
+     seam and is written to keep it working untouched. -->
+
+<div id="chrome">
+
+  <!-- Full width, 40px, `--bg-dark`. The symbol is the whole of the chrome's
+       navigation: in a session it opens settings, in settings it returns you to the
+       world you were in. Left padding clears the macOS traffic lights, which sit
+       inset over this strip — see electron/main.js, FRAME='inset'. -->
+  <header id="strip">
+    <button id="symbol" type="button" aria-label="Settings">Alexandria</button>
+
+    <!-- The PoC has no concurrent sessions, so the tab row is empty. The space is
+         reserved rather than reclaimed: retrofitting tabs into a strip sized for one
+         label is a rewrite of the whole header. -->
+    <span id="tabs"></span>
+
+    <!-- The chrome's fallback progress readout. Hidden whenever the world declares
+         its own, which both PoC worlds do. -->
+    <span id="progress" class="readout"></span>
+
+    <!-- A readout, never a control. It counts what is owed and clicks through to
+         nothing. Student-facing wording is "due back"; "owed" is the ledger's word. -->
+    <span id="due" class="readout" hidden><i class="dot warn"></i><span id="duecount"></span></span>
+
+    <span id="quota" class="readout"><i class="dot" id="quotadot"></i><span id="quotatext">—</span></span>
   </header>
 
-  <!-- The chrome does not host the ask. The world wraps it, the runtime fills it. -->
-  <div id="stage"></div>
+  <!-- The main surface. A world mounts here inside its shadow root and owns every
+       pixel, which is why it is white and why none of its colour comes from a chrome
+       token. The null state below sits inside the stage on purpose: the projector's
+       `stage.replaceChildren(host)` removes it the moment a world mounts, and a world
+       that never loads simply leaves it standing. No signal to coordinate. -->
+  <div id="stage">
+    <div id="nullstate">
+      <div class="block">
+        <h1>No world mounted</h1>
+        <p class="lead">There is nothing to stage. Your session is intact — choose a world and it will resume from where you left off.</p>
+        <p class="named-reason"><i class="dot danger"></i><span id="reason">no world has been requested yet</span></p>
+        <button type="button" class="primary" data-action="settings">Open settings</button>
+      </div>
+    </div>
+  </div>
 
-  <footer>
-    <button id="back">Back</button>
-    <button id="next">Next</button>
-    <span id="metrics" class="metrics"></span>
-  </footer>
-</main>
+  <!-- Full bleed below the strip, flat `--bg`, no gradient, no quota. Top-anchored
+       and horizontally centred — "in the middle" means the column is centred, not
+       that the content floats in the vertical centre. -->
+  <section id="settings" aria-label="Settings">
+    <div class="content">
+
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p class="sub">Chrome — outside every world</p>
+      </div>
+
+      <div class="sections">
+
+        <section class="group">
+          <h2>World</h2>
+
+          <!-- One of these two shows, depending on whether anything is installed. -->
+          <div class="rows" id="worlds-present">
+            <div class="row">
+              <div class="label">
+                <span class="name">Active world</span>
+                <span class="hint">Applies at the next boundary</span>
+              </div>
+              <div class="control">
+                <div class="select">
+                  <!-- #worldname is a projector hook: app.js writes the mounted
+                       world's name into it. Reusing it as the dropdown's current
+                       value is exact rather than convenient — they are the same fact. -->
+                  <select id="worldpicker" aria-label="Active world"></select>
+                  <span id="worldname" hidden></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rows" id="worlds-absent" hidden>
+            <div class="empty">
+              <p class="strong">No worlds installed</p>
+              <p class="hint">Alexandria renders in the plain world until you install one.</p>
+              <button type="button" class="primary" data-action="reveal-worlds">Browse worlds</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="group">
+          <h2>Motion</h2>
+          <div class="rows">
+            <div class="row">
+              <div class="label"><span class="name">Speed</span></div>
+              <div class="control slider">
+                <input type="range" id="speed" min="0.5" max="2" step="0.1" value="1" aria-label="Motion speed">
+                <span class="value" id="speedvalue">1.0×</span>
+              </div>
+            </div>
+            <div class="row">
+              <div class="label"><span class="name">Reduced motion</span></div>
+              <div class="control">
+                <div class="segmented" data-setting="reduced-motion">
+                  <button type="button" data-value="system" aria-pressed="true">System</button>
+                  <button type="button" data-value="on" aria-pressed="false">On</button>
+                  <button type="button" data-value="off" aria-pressed="false">Off</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="group">
+          <h2>Model</h2>
+          <div class="rows">
+            <div class="row">
+              <div class="label"><span class="name">Tutor model</span></div>
+              <div class="control">
+                <div class="select">
+                  <select id="tutormodel" aria-label="Tutor model">
+                    <option>Sonnet</option>
+                    <option>Opus</option>
+                    <option>Haiku</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="label">
+                <span class="name">Generator depth</span>
+                <span class="hint">Thinking budget for work written ahead</span>
+              </div>
+              <div class="control">
+                <div class="segmented" data-setting="generator-depth">
+                  <button type="button" data-value="off" aria-pressed="false">Off</button>
+                  <button type="button" data-value="low" aria-pressed="true">Low</button>
+                  <button type="button" data-value="high" aria-pressed="false">High</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- The chrome's fallback controls, for a world that declares none. Both PoC worlds
+     declare their own, so `body.world-controls` hides these in practice. #metrics is
+     dev instrumentation and floats clear of the stage rather than taking a grid row. -->
+<footer>
+  <button id="back">Back</button>
+  <button id="next">Next</button>
+  <span id="metrics" class="metrics"></span>
+</footer>
+
+<script type="module" src="/chrome.js"></script>
 <script type="module" src="/app.js"></script>
