@@ -1,0 +1,18 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hostile Probe</title>
+<style>
+  body { margin: 0; padding: 16px; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+         background: #fff; color: #1b2233; }
+  h1 { font-size: 15px; margin: 0 0 12px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #e6e9f2; vertical-align: top; }
+  th { color: #6b7391; font-weight: 400; }
+  .blocked { color: #2e7d32; }
+  .open { color: #b4413c; font-weight: 700; }
+</style>
+<h1>Arena boundary probe</h1>
+<table><thead><tr><th>attempt</th><th>outcome</th><th>detail</th></tr></thead><tbody id="rows"></tbody></table>
+<!-- A classic script, on purpose. See the note in probe.js: a module loads and runs here,
+     but its document paints nothing. -->
+<script src="probe.js"></script>

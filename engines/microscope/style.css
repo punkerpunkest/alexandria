@@ -1,0 +1,131 @@
+/* AN ENGINE SHIPS ITS OWN PALETTE and is handed none — the frame has an opaque origin and
+   shares no stylesheet, no custom property and no font with Alexandria. Nothing here may
+   be read from the chrome and nothing here may be assumed about it.
+
+   Dark chassis, bright field. That is not taste either: brightfield microscopy IS a bright
+   disc, and a bright disc only reads as a light source when the instrument around it is
+   dark. On a light page the field looks like a hole. */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #14161d;
+  color: #cbd3e6;
+  font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;                 /* nothing the tenant draws leaves the stage */
+}
+
+/* --- the readout strip ---------------------------------------------------------- */
+/* An instrument's own panel. It reports state, never the task. It WRAPS rather than
+   scrolls, because a readout that has slid out of sight is a readout that is not there. */
+#strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 9px 14px;
+  border-bottom: 1px solid #262b39;
+  background: #1a1e28;
+}
+#strip .r { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+#strip .r span { color: #6b7593; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+#strip .r b { font-weight: 400; color: #e6ecfb; }
+
+.tag {
+  padding: 2px 9px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.tag.good { color: #7ee787; }
+.tag.soft { color: #e0af68; }
+.tag.bad  { color: #ff7b8a; }
+
+/* The sharpness gauge exists so the DEPTH OF FIELD is felt rather than only stated: at 4x
+   the bar moves lazily across a wide range of stage heights, at 40x it snaps from empty to
+   full within a couple of fine-focus clicks. Same control, different instrument. */
+.gauge { width: 92px; height: 6px; border-radius: 3px; background: #262b39; overflow: hidden; }
+.gauge i { display: block; height: 100%; background: #7ee787; transition: width .06s linear; }
+
+/* --- the two views -------------------------------------------------------------- */
+/* Each SVG is absolutely positioned inside a relative pane. That is what makes the layout
+   safe at every width: `preserveAspectRatio="xMidYMid meet"` inside a box that is always
+   exactly the pane means the drawing letterboxes and NEVER clips, whatever the arena's
+   stage happens to be. An SVG sized by flex directly is the version that clips. */
+main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.pane { position: relative; min-width: 0; min-height: 0; }
+#viewPane { flex: 1 1 auto; }
+#scopePane { flex: 0 0 300px; }
+.pane svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+@media (max-width: 720px) { #scopePane { flex: 0 0 200px; } }
+
+/* --- the message line ------------------------------------------------------------ */
+#say {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 14px 6px;
+  min-height: 19px;
+  color: #8f9ab8;
+  font-size: 12px;
+}
+#say.bad  { color: #ff7b8a; }
+#say.good { color: #7ee787; }
+
+/* --- the controls ---------------------------------------------------------------- */
+/* Wraps on purpose. Four sliders, a turret and a button do not fit on one row at every
+   stage width, and a control row that overflows horizontally puts half the instrument
+   off-canvas — which is a defect, not a cosmetic issue. Wrapping costs height the views
+   can spare, because they are `flex: 1` with `min-height: 0`. */
+#knobs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  padding: 10px 14px 12px;
+  border-top: 1px solid #262b39;
+  background: #1a1e28;
+}
+.grp { display: flex; flex-direction: column; gap: 5px; }
+.cap { color: #6b7593; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+.cap b { color: #ff7b8a; font-weight: 400; }
+.row { display: flex; gap: 6px; }
+
+input[type=range] { width: 148px; accent-color: #6fd3c7; cursor: pointer; margin: 0; }
+#coarseGrp.locked input[type=range] { accent-color: #6b3540; cursor: not-allowed; }
+
+button.obj {
+  min-width: 46px;
+  padding: 7px 4px;
+  border-radius: 8px;
+  border: 1px solid #333a4d;
+  background: #212636;
+  color: #9aa5c4;
+  font: inherit;
+  cursor: pointer;
+}
+button.obj[aria-pressed="true"] { border-color: #6fd3c7; color: #14161d; background: #6fd3c7; font-weight: 700; }
+
+button.act {
+  padding: 10px 16px;
+  border-radius: 9px;
+  border: 1px solid #6fd3c7;
+  background: transparent;
+  color: #6fd3c7;
+  font: inherit;
+  cursor: pointer;
+}
+button.act:hover { background: #1d3b39; }
+button.act:disabled { border-color: #333a4d; color: #4d5670; cursor: default; background: transparent; }

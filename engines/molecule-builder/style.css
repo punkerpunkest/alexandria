@@ -1,0 +1,25 @@
+/* An engine ships its own palette. It may not read Alexandria's chrome tokens, and it is
+   not handed any — the iframe has an opaque origin and shares no stylesheet. */
+* { box-sizing: border-box; }
+body {
+  margin: 0; height: 100vh; display: flex; flex-direction: column;
+  font: 15px/1.5 -apple-system, system-ui, sans-serif; color: #1b2233; background: #f7f8fc;
+}
+#palette { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-bottom: 1px solid #dfe3f0; }
+#palette .hint { margin-left: auto; color: #6b7391; font-size: 13px; }
+.atom-btn {
+  width: 42px; height: 42px; border-radius: 50%; border: 2px solid #c3cadd;
+  background: #fff; font: 700 15px/1 inherit; cursor: pointer;
+}
+.atom-btn[aria-pressed="true"] { border-color: #2f6df6; box-shadow: 0 0 0 3px #d6e2ff; }
+#board { flex: 1; width: 100%; background: #fff; cursor: crosshair; }
+.bond { stroke: #4a5473; stroke-width: 3; }
+.atom circle { stroke: #4a5473; stroke-width: 2; cursor: pointer; }
+.atom text { font: 700 14px/1 sans-serif; pointer-events: none; user-select: none; }
+.atom.selected circle { stroke: #2f6df6; stroke-width: 4; }
+.atom.full circle { stroke-dasharray: none; }
+footer { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-top: 1px solid #dfe3f0; }
+button.act { padding: 10px 18px; border-radius: 10px; border: 2px solid #2f6df6; background: #2f6df6; color: #fff; font: 700 14px/1 inherit; cursor: pointer; }
+button.ghost { background: #fff; color: #2f6df6; }
+#say { color: #6b7391; font-size: 13px; min-height: 20px; }
+#say.bad { color: #b4413c; }

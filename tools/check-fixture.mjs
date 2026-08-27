@@ -8,6 +8,7 @@ import { buildSchema, buildSystemPrompt } from '../src/schema.js';
 import { paginate, readingTimeMs } from '../src/paginate.js';
 import { validate } from '../src/validate.js';
 import { resolveAsset, declaredAssets } from '../src/assets.js';
+import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/engine.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -111,6 +112,61 @@ const sites =
 // Every `throw new Error` in src/ and every `failures.push` in validate.js must be reached
 // by a case. Adding a failure path without a case turns this red, which is the point.
 eq('every failure site has a hostile case', String(cases.length), String(sites));
+
+// ---- 4. engines and the arena boundary ---------------------------------------
+// The arena is the trust boundary, so the properties that make it one are pinned here
+// rather than left to a manual pass. All model-free and offline, like everything above.
+const em = await json('engines/manifests.json');
+
+// Every shipped package is loadable, and its entry actually exists on disk. A broken
+// package must fail at LOAD; this is the offline half of that promise.
+const engineIds = (await readdir(join(ROOT, 'engines'), { withFileTypes: true }))
+  .filter((d) => d.isDirectory()).map((d) => d.name).sort();
+for (const id of engineIds) {
+  const e = JSON.parse(await readFile(join(ROOT, 'engines', id, 'engine.json'), 'utf8'));
+  eq(`engines/${id} manifest is valid`, validateEngine(e), '[]\n');
+  eq(`engines/${id} id matches its directory`, e.id, id);
+  let onDisk = true;
+  try { await readFile(join(ROOT, 'engines', id, e.entry)); } catch { onDisk = false; }
+  eq(`engines/${id} entry exists`, onDisk, 'true\n');
+  eq(`engines/${id} entry url`, entryUrl(e), `/engines/${id}/${e.entry}`);
+  for (const kind of Object.keys(e.taskSpace)) {
+    eq(`engines/${id}/${kind} task schema`, buildTaskSchema(e, kind),
+       await read(`engines/${id}.${kind}.schema.json`));
+  }
+}
+
+for (const c of em.cases) {
+  eq(`engines/hostile/${c.id}`, validateEngine(merge(em.base, c.patch)),
+     JSON.stringify(c.failures, null, 2) + '\n');
+}
+const engineRules = (await readFile(join(ROOT, 'src/engine.js'), 'utf8')).split('f.push(').length - 1;
+eq('every engine rule has a hostile case', String(engineRules), String(em.rules));
+
+// THE RETURN CHANNEL'S GUARANTEES. A hostile engine cannot name itself, claim to be a
+// first-party micro card, or report its own clock; a cyclic graph terminates instead of
+// hanging; an injection in `notes` is capped. Verified live against the arena on 27 Aug;
+// pinned here so it stays true.
+const scored = { id: 'x', version: '1.0.0', review: 'unreviewed', scored: true };
+const cyc = { a: 1 }; cyc.self = cyc;
+const hostile = shapeResult({
+  engine: scored, timeOnTaskMs: 50, completed: true,
+  raw: { producer: 'micro', engine: { id: 'trusted' }, time_on_task_ms: 999999,
+         correctness: 'definitely', confidence: 42, attempt: cyc, notes: 'x'.repeat(5000) },
+});
+eq('arena stamps the producer', hostile.producer, 'sandbox');
+eq('arena stamps the identity', hostile.engine.id, 'x');
+eq('arena stamps the clock', hostile.time_on_task_ms, '50\n');
+eq('a mistyped correctness is dropped, not coerced', hostile.correctness, 'null\n');
+eq('an out-of-range confidence is dropped', hostile.confidence, 'null\n');
+eq('notes are capped', String(hostile.notes.length), '600');
+eq('a cyclic attempt terminates', String(JSON.stringify(hostile.attempt).length < 400), 'true');
+
+// An unscored engine has no completion event to have lacked, so both keys are ABSENT
+// rather than false — a `false` would read downstream as a failed attempt.
+const unscored = shapeResult({ engine: { ...scored, scored: false }, raw: { correctness: true }, timeOnTaskMs: 10 });
+eq('unscored has no correctness key', String('correctness' in unscored), 'false');
+eq('unscored has no completed key', String('completed' in unscored), 'false');
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);
 if (fails.length) { console.log('\n' + fails.join('\n\n')); process.exit(1); }

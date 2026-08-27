@@ -1,0 +1,43 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "power": {
+      "type": "string",
+      "enum": [
+        "40x",
+        "100x",
+        "400x"
+      ],
+      "description": "The TOTAL magnification to finish at. The eyepiece is fixed at 10x and the objectives are 4x, 10x and 40x, so these three totals are the only ones the instrument can reach — there is no oil-immersion objective and 1000x is not available."
+    },
+    "specimen": {
+      "type": "string",
+      "enum": [
+        "onion-epidermis",
+        "newsprint-letter-e"
+      ],
+      "description": "What is on the slide, and the only two things this engine can draw. onion-epidermis is a field of brick-shaped plant cells with nuclei; newsprint-letter-e is the classic lowercase e cut from newspaper, which shows that the image arrives inverted and reversed. Never name a specimen outside this list — the engine will report an error rather than draw the wrong thing."
+    },
+    "start": {
+      "type": "string",
+      "enum": [
+        "as-found-on-low-power",
+        "as-found-on-high-power",
+        "stage-racked-to-the-top"
+      ],
+      "description": "The state the instrument is found in. as-found-on-low-power is the tidy case. as-found-on-high-power leaves the 40x objective swung in with the stage far below focus, which forces the student to go back down to low power because coarse focus is locked at 40x. stage-racked-to-the-top starts the stage at the end of its upward travel so the student has to cross the focal plane coming down."
+    },
+    "slide_label": {
+      "type": "string",
+      "maxLength": 24,
+      "description": "The words written on the slide's paper label, drawn on the glass in the side view. It is a property of the object on the stage, e.g. 'Onion epidermis' or 'Newsprint e'. It is NOT an instruction and NOT the task sentence — the chrome says the task, and the engine never restates it."
+    }
+  },
+  "required": [
+    "power",
+    "specimen",
+    "start",
+    "slide_label"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "formula": {
+      "type": "string",
+      "maxLength": 16,
+      "description": "The molecular formula to build, written plainly, e.g. H2O, CH4, NH3, C2H6, CH4O. Only H, C, N and O are available, and the builder models SINGLE BONDS ONLY — never ask for a molecule that needs a double or triple bond, so no O2, no CO2, no N2, no CH2O."
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 40,
+      "description": "The common name of that molecule, e.g. water, methane, ammonia, ethane, methanol."
+    }
+  },
+  "required": [
+    "formula",
+    "name"
+  ]
+}

@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSchema, buildSystemPrompt } from '../src/schema.js';
 import { paginate, readingTimeMs } from '../src/paginate.js';
 import { validate } from '../src/validate.js';
+import { buildTaskSchema, validateEngine } from '../src/engine.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -35,4 +36,22 @@ for (const id of ['cartoon', 'visual-novel']) {
   }
   await write(`${id}/reading-time.json`, reading);
 }
+// ENGINES. A task space is to an engine what a channel set is to a world, so its schema is
+// blessed the same way. A package that does not validate stops the capture rather than
+// freezing a broken manifest — the fixture is the interface, and an interface captured from
+// something invalid is worse than no fixture at all.
+await mkdir(join(F, 'engines'), { recursive: true });
+const engineIds = (await readdir(join(ROOT, 'engines'), { withFileTypes: true }))
+  .filter((d) => d.isDirectory()).map((d) => d.name).sort();
+
+for (const id of engineIds) {
+  const engine = JSON.parse(await readFile(join(ROOT, 'engines', id, 'engine.json'), 'utf8'));
+  const bad = validateEngine(engine);
+  if (bad.length) throw new Error(`engine "${id}" does not validate: ${JSON.stringify(bad)}`);
+  const kinds = Object.keys(engine.taskSpace);
+  for (const kind of kinds) await write(`engines/${id}.${kind}.schema.json`, buildTaskSchema(engine, kind));
+  console.log(`${id.padEnd(17)} ${engine.scored ? 'scored  ' : 'unscored'} ` +
+    `kinds=${kinds.length} review=${engine.review} validate=clean`);
+}
+
 console.log('\ncaptured to fixtures/');

@@ -1,0 +1,32 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "top_power": {
+      "type": "string",
+      "enum": [
+        "100x",
+        "400x"
+      ],
+      "description": "The total magnification to finish at. 100x requires focus at 40x then 100x; 400x requires focus at 40x, then 100x, then 400x, in that order. 40x is not offered as a top power because a one-rung ladder is not a series."
+    },
+    "specimen": {
+      "type": "string",
+      "enum": [
+        "onion-epidermis",
+        "newsprint-letter-e"
+      ],
+      "description": "What is on the slide, and the only two things this engine can draw — onion-epidermis or newsprint-letter-e. Never name anything else."
+    },
+    "slide_label": {
+      "type": "string",
+      "maxLength": 24,
+      "description": "The words written on the slide's paper label, drawn on the glass in the side view. A property of the object, never an instruction and never the task sentence."
+    }
+  },
+  "required": [
+    "top_power",
+    "specimen",
+    "slide_label"
+  ]
+}

@@ -1,0 +1,130 @@
+/* THE ARENA'S OWN SURFACE. Tokyo Night Storm, because the arena bar is Alexandria's
+   surface rather than a world's — the rule on the books is that a WORLD may never read
+   chrome tokens, and Alexandria reading its own is not that rule. See
+   `Alexandria - Design`, the palette callout.
+
+   The tokens are redeclared here rather than imported from `app.css` on purpose: the arena
+   must mount with no chrome and no world on screen at all (see bench.html), and a
+   component that only renders correctly inside one particular page is not a component.
+   If the chrome later publishes these as real custom properties, this block becomes the
+   fallback rather than the definition. */
+.arena {
+  --bg: #24283b;
+  --bg-dark: #1f2335;
+  --border: #3b4261;
+  --text: #c0caf5;
+  --text-dim: #a9b1d6;
+  --text-muted: #565f89;
+  --accent: #7aa2f7;
+  --ok: #9ece6a;
+  --warn: #e0af68;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-dark);
+  color: var(--text);
+  font: 15px/1.5 ui-monospace, "Hack Nerd Font", SFMono-Regular, Menlo, monospace;
+}
+
+/* ONE EDGE, NOT A FRAME. 76px at the top and the tenant owns everything below it. The
+   alternative — framing the engine on all four sides — costs screen on every side and
+   makes the chrome read as supervising the engine rather than hosting it. */
+.arena-bar {
+  flex: 0 0 76px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.arena-task { flex: 1; min-width: 0; }
+.arena-task-label {
+  display: block;
+  font-size: 12px;                       /* Meta */
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.arena-task-sentence {
+  margin: 0;
+  font-size: 15px;                       /* Body */
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Provenance for the life of the mount. Muted on purpose — it must be readable without
+   competing with the task, because it is a standing disclosure rather than a message. */
+.arena-prov {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;                       /* Meta */
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.arena-prov-name { color: var(--text-dim); }
+.arena-review {
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+.arena-review--unreviewed { color: var(--warn); }
+.arena-review--community  { color: var(--accent); }
+.arena-review--verified   { color: var(--ok); }
+
+/* SAME POSITION, SAME SIZE, only the weight changes — so the bank landing moves nothing.
+   `min-width` is what holds the box steady across the two words, since `Continue` is wider
+   than `Skip` and a control that resizes when it changes meaning is a control that moves. */
+.arena-exit {
+  flex: 0 0 auto;
+  min-width: 116px;
+  padding: 10px 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;                       /* Label */
+  cursor: pointer;
+}
+.arena-exit:hover { color: var(--text-dim); border-color: var(--text-muted); }
+.arena-exit--banked {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-dark);
+  font-weight: 700;
+}
+
+.arena-stage { flex: 1; min-height: 0; position: relative; }
+
+/* NOTHING THE TENANT DRAWS LEAVES THE STAGE. Stated as a visual rule in the design so it
+   is testable by looking; `overflow` and the fixed box are what make it true. */
+.arena-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;                      /* an engine ships its own palette; do not tint it */
+}
+
+/* The degrade is a substitution, not a fault: one quiet line, `--warn`, no error panel and
+   nothing to dismiss. Never `--danger` — the student is told what is happening, not what
+   went wrong. */
+.arena-notice {
+  margin: 0;
+  padding: 18px 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.arena-notice::before {
+  content: "● ";
+  color: var(--warn);
+}

@@ -1,0 +1,14 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "note": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Free text, ignored by the probe."
+    }
+  },
+  "required": [
+    "note"
+  ]
+}

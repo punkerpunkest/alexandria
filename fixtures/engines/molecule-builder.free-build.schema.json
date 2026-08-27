@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "constraint": {
+      "type": "string",
+      "enum": [
+        "contains-nitrogen",
+        "carbon-chain-of-three",
+        "two-or-more-oxygens"
+      ],
+      "description": "The structural property the student's molecule must have. Every atom must still end up with a full valence, and the builder models single bonds only."
+    }
+  },
+  "required": [
+    "constraint"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "id": "microscope",
+  "name": "Compound Microscope",
+  "version": "0.1.0",
+  "author": "Alexandria samples",
+  "review": "unreviewed",
+  "entry": "index.html",
+  "subject": "biology",
+  "levels": ["lower-secondary", "upper-secondary"],
+  "scored": true,
+
+  "_why_scored": "There is a goal state and the instrument can tell whether it has been reached: the specimen sharply in focus at the total magnification the task names, with the illumination inside the band that resolves anything. The value of the engine is not the goal, though — it is the four procedural mistakes it makes visible and counts on the way there, which is what `notes` carries out.",
+
+  "_fidelity": "WHAT THIS DOES NOT MODEL, stated because a simulation that quietly omits a mechanism teaches that the mechanism does not exist. (1) NO STAGE TRANSLATION. The specimen is always centred, so the commonest real mistake at this bench — stepping up to 40x without centring first and losing the specimen out of the narrowed field — cannot happen here and is not taught here. (2) NO OIL IMMERSION and no 100x objective, so the reachable total magnifications are 40x, 100x and 400x only. (3) NO CONDENSER HEIGHT and no Kohler illumination: there is one aperture control, and it is modelled as affecting BRIGHTNESS AND CONTRAST ONLY. Its real effects on numerical aperture, resolution and depth of field are absent, so closing it down here never trades resolution for depth the way it does on a real stand. (4) THE DEPTH OF FIELD FIGURES ARE EXAGGERATED, by roughly a factor of ten, so that focus can be found with a mouse — a real 40x/0.65 objective has a depth of field near 1 micrometre, not the 8 used here. Every depth number on screen is therefore illustrative, not measurable. (5) NO RESOLUTION LIMIT AT ALL. The specimen is a vector drawing put through a Gaussian blur, so it never breaks down into an Airy pattern and detail never runs out; the diffraction limit that actually stops a light microscope near 0.2 micrometres is not present. (6) NO ABERRATION of any kind, no coverslip thickness, no staining chemistry, no dioptre or interpupillary adjustment. (7) NO NUMERIC READOUT EXISTS ON A REAL INSTRUMENT. Stage height and the objective-to-slide gap are shown here as numbers; judging that gap by eye from the side is part of the real skill and this simulation hands it over for free. (8) COARSE FOCUS ON THE 40x OBJECTIVE IS REFUSED HERE. A real microscope permits it and the slide cracks and the front lens is damaged. This engine cannot show that consequence, so it blocks the knob and counts the attempt instead — the count is the substitute for the broken slide, and a student should not conclude the instrument protects them.",
+
+  "taskSpace": {
+    "focus-specimen": {
+      "job": "Ask the student to bring the slide into sharp focus at one named total magnification, starting from a stated state the instrument was left in.",
+      "parameters": {
+        "power": {
+          "kind": "enum",
+          "values": ["40x", "100x", "400x"],
+          "job": "The TOTAL magnification to finish at. The eyepiece is fixed at 10x and the objectives are 4x, 10x and 40x, so these three totals are the only ones the instrument can reach — there is no oil-immersion objective and 1000x is not available."
+        },
+        "specimen": {
+          "kind": "enum",
+          "values": ["onion-epidermis", "newsprint-letter-e"],
+          "job": "What is on the slide, and the only two things this engine can draw. onion-epidermis is a field of brick-shaped plant cells with nuclei; newsprint-letter-e is the classic lowercase e cut from newspaper, which shows that the image arrives inverted and reversed. Never name a specimen outside this list — the engine will report an error rather than draw the wrong thing."
+        },
+        "start": {
+          "kind": "enum",
+          "values": ["as-found-on-low-power", "as-found-on-high-power", "stage-racked-to-the-top"],
+          "job": "The state the instrument is found in. as-found-on-low-power is the tidy case. as-found-on-high-power leaves the 40x objective swung in with the stage far below focus, which forces the student to go back down to low power because coarse focus is locked at 40x. stage-racked-to-the-top starts the stage at the end of its upward travel so the student has to cross the focal plane coming down."
+        },
+        "slide_label": {
+          "kind": "text",
+          "maxLength": 24,
+          "job": "The words written on the slide's paper label, drawn on the glass in the side view. It is a property of the object on the stage, e.g. 'Onion epidermis' or 'Newsprint e'. It is NOT an instruction and NOT the task sentence — the chrome says the task, and the engine never restates it."
+        }
+      }
+    },
+    "power-series": {
+      "job": "Ask the student to work up the objectives in order, bringing the specimen into focus at every power on the way rather than only at the top one. Scores the sequence, not the endpoint.",
+      "parameters": {
+        "top_power": {
+          "kind": "enum",
+          "values": ["100x", "400x"],
+          "job": "The total magnification to finish at. 100x requires focus at 40x then 100x; 400x requires focus at 40x, then 100x, then 400x, in that order. 40x is not offered as a top power because a one-rung ladder is not a series."
+        },
+        "specimen": {
+          "kind": "enum",
+          "values": ["onion-epidermis", "newsprint-letter-e"],
+          "job": "What is on the slide, and the only two things this engine can draw — onion-epidermis or newsprint-letter-e. Never name anything else."
+        },
+        "slide_label": {
+          "kind": "text",
+          "maxLength": 24,
+          "job": "The words written on the slide's paper label, drawn on the glass in the side view. A property of the object, never an instruction and never the task sentence."
+        }
+      }
+    }
+  }
+}

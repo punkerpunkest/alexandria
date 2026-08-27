@@ -1,0 +1,41 @@
+{
+  "id": "molecule-builder",
+  "name": "Molecule Builder",
+  "version": "0.1.0",
+  "author": "Alexandria samples",
+  "review": "unreviewed",
+  "entry": "index.html",
+  "subject": "chemistry",
+  "levels": ["lower-secondary", "upper-secondary"],
+  "scored": true,
+
+  "_fidelity": "SINGLE BONDS ONLY. The simulation models covalent single bonds and nothing else, so it cannot represent O2, CO2, N2 or anything with a double or triple bond. That limit is stated in every task parameter's job line because a sim that permits an impossible molecule teaches something false and the student has no way to know — see `Alexandria - Interactives`, fidelity is a safety property. An engine declares what it CANNOT model, or Alexandria will cheerfully generate a task it gets wrong.",
+
+  "taskSpace": {
+    "build-target": {
+      "job": "Ask the student to build one specific named molecule from individual atoms.",
+      "parameters": {
+        "formula": {
+          "kind": "text",
+          "maxLength": 16,
+          "job": "The molecular formula to build, written plainly, e.g. H2O, CH4, NH3, C2H6, CH4O. Only H, C, N and O are available, and the builder models SINGLE BONDS ONLY — never ask for a molecule that needs a double or triple bond, so no O2, no CO2, no N2, no CH2O."
+        },
+        "name": {
+          "kind": "text",
+          "maxLength": 40,
+          "job": "The common name of that molecule, e.g. water, methane, ammonia, ethane, methanol."
+        }
+      }
+    },
+    "free-build": {
+      "job": "Ask the student to build any molecule that satisfies one structural constraint, where more than one answer is correct.",
+      "parameters": {
+        "constraint": {
+          "kind": "enum",
+          "values": ["contains-nitrogen", "carbon-chain-of-three", "two-or-more-oxygens"],
+          "job": "The structural property the student's molecule must have. Every atom must still end up with a full valence, and the builder models single bonds only."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Arena bench</title>
+<link rel="stylesheet" href="/arena/arena.css">
+<style>
+  /* THE BENCH IS NOT THE CHROME. It exists so the arena can be run and verified with no
+     world on screen, no projector loaded and no model call — the same job `?fixture=max`
+     does for the session loop. Deliberately plain, so nothing here can be mistaken for
+     the real surface or quietly become load-bearing. */
+  body { margin: 0; background: #16161e; color: #c0caf5;
+         font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  header { display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #3b4261; }
+  select, button { background: #24283b; color: #c0caf5; border: 1px solid #3b4261;
+                   border-radius: 6px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  #mount { height: 62vh; border-bottom: 1px solid #3b4261; }
+  #out { margin: 0; padding: 12px 14px; white-space: pre-wrap; color: #9ece6a; }
+  .muted { color: #565f89; }
+</style>
+
+<header>
+  <label class="muted">engine</label>
+  <select id="which"></select>
+  <button id="run">Mount</button>
+  <button id="bank">Bank the next module</button>
+  <span class="muted" id="note"></span>
+</header>
+
+<div id="mount"></div>
+<pre id="out" class="muted">No mount yet.</pre>
+
+<script type="module">
+import { mountArena } from '/arena/arena.js';
+import { validateEngine } from '/src/engine.js';
+
+// Fixture tasks. Written by hand and never generated, for the same reason
+// `fixtures/beats/*.json` are: an input the harness invents is an input that drifts to
+// whatever makes the code look correct. The `sentence` is the chrome's to say.
+const TASKS = {
+  'molecule-builder': {
+    kind: 'build-target',
+    params: { formula: 'H2O', name: 'water' },
+    sentence: 'Build a molecule of water, H2O.',
+  },
+  'microscope': {
+    kind: 'focus-specimen',
+    params: {
+      power: '400x',
+      specimen: 'onion-epidermis',
+      start: 'as-found-on-high-power',
+      slide_label: 'Onion epidermis',
+    },
+    sentence: 'The last person left this microscope on high power. Get the onion cells sharply in focus at 400x, without forcing anything.',
+  },
+  'never-ready': {
+    kind: 'probe',
+    params: { note: 'never completes the handshake' },
+    sentence: 'This engine never reports ready. The arena should degrade rather than wait.',
+  },
+  'hostile-probe': {
+    kind: 'probe',
+    params: { note: 'this engine is a test fixture and tries to escape the arena' },
+    sentence: 'This is the boundary test. It should fail to do everything it attempts.',
+  },
+};
+
+const mount = document.getElementById('mount');
+const out = document.getElementById('out');
+const which = document.getElementById('which');
+const note = document.getElementById('note');
+let live = null;
+
+for (const id of Object.keys(TASKS)) which.append(new Option(id, id));
+
+const show = (label, value) => {
+  out.className = '';
+  out.textContent = `${label}\n\n${JSON.stringify(value, null, 2)}`;
+};
+
+document.getElementById('run').addEventListener('click', async () => {
+  live?.destroy();
+  out.className = 'muted';
+  out.textContent = 'mounted, waiting…';
+
+  const id = which.value;
+  const engine = await (await fetch(`/engines/${id}/engine.json`)).json();
+
+  // The loader half of the contract, run here because no loader component owns engines
+  // yet. A broken package must fail at LOAD, not mid-session.
+  const bad = validateEngine(engine);
+  if (bad.length) {
+    out.className = '';
+    out.textContent = `engine "${id}" rejected at load:\n\n` +
+      bad.map((f) => `  ${f.scope}: ${f.reason}`).join('\n');
+    return;
+  }
+  note.textContent = `${engine.scored ? 'scored' : 'unscored'} · review: ${engine.review}`;
+
+  live = mountArena(mount, {
+    engine,
+    task: TASKS[id],
+    banked: false,
+    onResult: (r) => show('ledger payload', r),
+    onDegrade: (reason) => show('degraded — a micro set would substitute here', { reason }),
+  });
+});
+
+document.getElementById('bank').addEventListener('click', () => live?.setBanked(true));
+</script>

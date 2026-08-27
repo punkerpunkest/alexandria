@@ -6,6 +6,7 @@ import { Generator } from './src/claude.js';
 import { buildSchema, buildSystemPrompt } from './src/schema.js';
 import { validate, repairPrompt } from './src/validate.js';
 import { paginate, readingTimeMs } from './src/paginate.js';
+import { ENGINE_CSP } from './src/engine.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const WORLD_ID = process.env.WORLD ?? 'cartoon';
@@ -138,11 +139,58 @@ createServer(async (req, res) => {
       console.log(`[module] "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
       return send(res, 200, t);
     }
+    // ENGINE PACKAGES, served with a CSP that blocks EGRESS. An engine is third-party
+    // code, so the iframe's `sandbox` attribute contains the DOM and this header contains
+    // the network; neither is sufficient alone. `ENGINE_CSP` names what it blocks rather
+    // than what it allows, because `'self'` matches nothing from an opaque origin — the
+    // reasoning is written down in `src/engine.js`.
+    if (url.pathname.startsWith('/engines/')) {
+      const f = join(ROOT, url.pathname);
+      // Containment, the same invariant a world package has. `new URL()` already collapses
+      // `..`, so this catches the encoded forms and anything a future caller invents.
+      if (!f.startsWith(join(ROOT, 'engines'))) throw new Error('path escapes the engines root');
+      // THE HEADER IS NOT ENOUGH, and this is measured rather than assumed. Served as a
+      // response header, `connect-src 'none'` was silently not enforced — a browser
+      // extension rewriting headers is enough to remove it, and the failure is invisible:
+      // the header is on the wire, `curl` shows it, and the page exfiltrates anyway. The
+      // identical directive as a `<meta>` inside the document WAS enforced, same browser,
+      // same page. So Alexandria injects its own containment into the document it is
+      // hosting rather than asking the network layer to carry it.
+      //
+      // It goes at the very start, because a meta CSP only governs content parsed AFTER
+      // it. The header stays too: two independent carriers, and neither is trusted alone.
+      let payload = await readFile(f);
+      if (extname(f) === '.html') {
+        const meta = `<meta http-equiv="Content-Security-Policy" content="${ENGINE_CSP}">`;
+        const text = payload.toString('utf8');
+        const after = /^\s*<!doctype[^>]*>/i.exec(text);
+        payload = after
+          ? text.slice(0, after[0].length) + '\n' + meta + text.slice(after[0].length)
+          : meta + '\n' + text;
+      }
+      res.writeHead(200, {
+        'content-type': MIME[extname(f)] ?? 'application/octet-stream',
+        'content-security-policy': ENGINE_CSP,
+        // AN ENGINE MAY USE ES MODULES, and this header is the only reason it can. A module
+        // script is fetched in CORS mode, and from the frame's OPAQUE origin that request
+        // is cross-origin even though the URL is our own — so without this a
+        // `<script type="module">` fails with a blank frame and an error only visible
+        // inside the frame the author cannot open. Exactly the trap this codebase keeps
+        // writing down. It grants nothing: `connect-src 'none'` already blocks every fetch
+        // the engine could make with the permission.
+        'access-control-allow-origin': '*',
+        'cache-control': 'no-store',
+      });
+      return res.end(payload);
+    }
     // `src/assets.js` is shared by the loader and the projector on purpose — one
     // definition of an asset path, so the on-disk check and the render cannot drift.
+    // `src/engine.js` is shared the same way, by the arena and the engine loader.
     // Named explicitly rather than serving src/, which would also expose the adapter.
     const file = url.pathname === '/src/assets.js'
       ? join(ROOT, 'src', 'assets.js')
+      : url.pathname === '/src/engine.js'
+      ? join(ROOT, 'src', 'engine.js')
       : url.pathname.startsWith('/worlds/')
       ? join(ROOT, url.pathname)
       : join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);

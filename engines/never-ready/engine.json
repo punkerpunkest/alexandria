@@ -1,0 +1,20 @@
+{
+  "id": "never-ready",
+  "name": "Never Ready",
+  "version": "0.1.0",
+  "author": "Alexandria samples",
+  "review": "unreviewed",
+  "entry": "index.html",
+  "subject": "_test",
+  "levels": [],
+  "scored": true,
+
+  "_purpose": "NOT A TEACHING ENGINE. It loads and then does nothing, so the arena's readiness deadline expires and the degrade path runs. That path is one of only two outcomes a mount can have, and an outcome nothing can reach is an outcome nobody has tested. Keep it out of any registry.",
+
+  "taskSpace": {
+    "probe": {
+      "job": "Never answered. The engine deliberately does not complete the handshake.",
+      "parameters": { "note": { "kind": "text", "maxLength": 120, "job": "Ignored." } }
+    }
+  }
+}
