@@ -78,6 +78,11 @@
   --strip-inset: 92px;
 }
 
+/* Fullscreen: macOS hides the traffic lights, so the reserved 92px is dead space and
+   the symbol returns to the window padding. Set by chrome.js from a main-process
+   signal — the page cannot see the native window's state on its own. */
+body.fullscreen { --strip-inset: var(--pad-window); }
+
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
@@ -108,6 +113,10 @@ body {
   padding: var(--pad-window) var(--pad-window) var(--pad-window) var(--strip-inset);
   background: var(--bg-dark);
   border-bottom: var(--hairline) solid var(--border);
+  /* The inset changes when the window goes fullscreen and the lights disappear. macOS
+     animates that transition, so the symbol slides rather than jumping into place.
+     Reduced motion is handled globally at the foot of this file. */
+  transition: padding-left 180ms ease;
   /* The strip is the window's drag handle under an inset titlebar; the symbol and the
      readouts opt back out below so a click on them is a click, not a drag. */
   -webkit-app-region: drag;

@@ -144,3 +144,12 @@ for (const b of $$('[data-action="reveal-worlds"]')) {
   if (!isApp) { b.hidden = true; continue; }
   b.addEventListener('click', () => host.revealWorlds());
 }
+
+// Fullscreen reclaims the strip's left inset. The 92px exists only to clear the macOS
+// traffic lights, and macOS hides them in fullscreen, so the symbol shifts back to the
+// window padding and the strip stops carrying a gap for something that is not there.
+//
+// The windowed inset stays the default when no signal ever arrives, which is what the
+// browser dev path gets — it has no native window, so it keeps matching the Figma
+// boards rather than inventing a third layout nobody designed.
+host.onFullscreen((on) => document.body.classList.toggle('fullscreen', on));

@@ -17,6 +17,11 @@
 // whichever host it is running under.
 const CALLS = ['revealWorlds', 'worldsDir', 'minimize', 'close'];
 
+// Things the host TELLS the chrome, rather than things the chrome asks for. Same
+// three-places rule as the calls: the stub below, the preload, and a sender in the
+// main process.
+const EVENTS = ['onFullscreen'];
+
 // Dev mode. Each call resolves rather than throwing, because a browser-mode chrome should
 // degrade to doing nothing rather than break — the same rule as everywhere else. It warns
 // once per call so a missing capability is visible to whoever is working on it, instead of
@@ -33,6 +38,10 @@ function browserStub() {
       return null;
     };
   }
+  // SUBSCRIPTIONS are not calls: the host pushes, the chrome listens. The browser has
+  // no native window to go fullscreen, so this never fires — which is the correct
+  // answer rather than a missing one, and is why it does not warn like the calls above.
+  for (const name of EVENTS) stub[name] = () => {};
   return stub;
 }
 

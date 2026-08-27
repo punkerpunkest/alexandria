@@ -43,6 +43,18 @@ function createWindow() {
     webPreferences: { preload: join(HERE, 'preload.cjs'), sandbox: true },
   });
   win.once('ready-to-show', () => win.show());
+
+  // FULLSCREEN IS A CHROME LAYOUT FACT. macOS hides the traffic lights in fullscreen,
+  // so the 92px the strip reserves for them becomes dead space and the symbol shifts
+  // back to the window padding. The renderer cannot observe this — it is a property of
+  // the native window, not of the page — so the main process has to say so. Sent on
+  // did-finish-load too, or a reload while already fullscreen comes back with the
+  // windowed inset.
+  const sendFullscreen = () => win.webContents.send('alexandria:fullscreen', win.isFullScreen());
+  win.on('enter-full-screen', sendFullscreen);
+  win.on('leave-full-screen', sendFullscreen);
+  win.webContents.on('did-finish-load', sendFullscreen);
+
   win.loadURL(`http://127.0.0.1:${PORT}`);
 }
 
