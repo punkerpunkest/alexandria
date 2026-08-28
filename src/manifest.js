@@ -400,6 +400,9 @@ export function validateManifest(world, { dir = null, files = null, templates = 
   if (templates) {
     const attrs = (html, attr) =>
       [...String(html).matchAll(new RegExp(`${attr}="([^"]*)"`, 'g'))].map((x) => x[1]);
+    // Every slot any screen declares itself the host of. Values, not keys: the key is the
+    // screen type and the values are what it may host.
+    const hosted = new Set(Object.values(world.hosts ?? {}).flat());
     const known = new Set([...Object.keys(channels), ...Object.keys(moduleChannels)]);
     const placed = new Set();
     let anyControls = false;
@@ -408,6 +411,14 @@ export function validateManifest(world, { dir = null, files = null, templates = 
       for (const slot of attrs(html, 'data-slot')) {
         if (slot === 'controls') { anyControls = true; continue; }   // runtime-owned
         if (slot === 'ask') continue;                                // runtime-owned
+        // A HOSTED SLOT IS RUNTIME-OWNED TOO, and for exactly the same reason as the two
+        // above: it names a place the projector mounts something into, not a value the
+        // model generates. Cartoon's `hosts: { interactive: ["interactive"] }` declares an
+        // arena mount point, and requiring it to be a channel would make a world unable to
+        // say where an interactive sits — which is the one thing `Alexandria - World Spec`
+        // says the world decides. Read from the manifest rather than hardcoded, so a world
+        // hosting something else is covered without touching this rule.
+        if (hosted.has(slot)) continue;
         if (!known.has(slot)) {
           say('E7', `screens.${key}`, `screen "${key}" fills slot "${slot}", ` +
               'which is not a declared channel');
