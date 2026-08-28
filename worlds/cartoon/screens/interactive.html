@@ -1,0 +1,15 @@
+<!-- THE INTERACTIVE SLIDE. `Alexandria - World Spec`, "Interactives are screens too": an
+     interactive is a slide type in the sequence and the world declares where it can sit —
+     exactly one, and alone on the slide. `hosts` in world.json is the declaration; this
+     template is where in the screen, and the runtime mounts the arena (or the substitute
+     card set) into `data-slot="interactive"`.
+
+     ALONE means alone: the teacher and the control bar are deliberately not declared here,
+     so the projector prunes them for the length of the mount. The exit control inside the
+     arena is the only way out of one, and a persisted Continue sitting beside it would be a
+     second one that skips the result instead of returning it. The progress bar stays,
+     because it is a readout of the module just read rather than part of the interactive. -->
+<section class="screen interactive">
+  <div class="progress" data-persist="progress" data-readout="progress"><i></i></div>
+  <div class="handover" data-slot="interactive"></div>
+</section>

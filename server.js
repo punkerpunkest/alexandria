@@ -18,6 +18,20 @@ const PORT = Number(process.env.PORT ?? 4173);
 const worldDir = join(ROOT, 'worlds', WORLD_ID);
 const world = JSON.parse(await readFile(join(worldDir, 'world.json'), 'utf8'));
 
+// A WORLD DECLARES WHERE A NON-BEAT SCREEN SITS, and a declaration naming a screen type the
+// package never shipped is a broken package. It fails HERE, at load, for the same reason a
+// broken engine manifest does below: the alternative is a student reaching a boundary and
+// finding the interactive has nowhere to go. The template itself is served by /api/world
+// with every other screen type, so nothing further is needed to honour it.
+for (const [type, hosted] of Object.entries(world.hosts ?? {})) {
+  if (!world.screens?.[type]) {
+    throw new Error(`world "${world.id}": hosts declares screen type "${type}", which is not declared in world.screens`);
+  }
+  if (!Array.isArray(hosted) || !hosted.length) {
+    throw new Error(`world "${world.id}": hosts."${type}" must list what that screen type holds, and it lists nothing`);
+  }
+}
+
 // ENGINES ARE LOADED ONCE, AT STARTUP, and a broken package stops the server rather than
 // surfacing mid-session. Same discipline as the world manifest above, and the failure
 // policy asks for exactly this: a broken package fails at LOAD.

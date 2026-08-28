@@ -1,5 +1,5 @@
 {
-  "_note": "SPIKE SCOPE: this world stages a module of teaching beats. Interactives (micro sets and installed sandbox engines) are a separate unit at the module boundary, hosted by the arena, and are NOT implemented here. Do not infer their size, duration or cost from anything in this file.",
+  "_note": "SPIKE SCOPE: this world stages a module of teaching beats. An interactive (a micro set or an installed sandbox engine) is a separate unit at the module boundary and Alexandria owns everything inside it — what plays, the task, the exit and the result. What this world owns is WHERE it sits: `hosts` below declares the screen type it may occupy and `screens/interactive.html` declares where in that screen. Do not infer an interactive's size, duration or cost from anything else in this file.",
   "_reserved": "'checkpoint' is a RESERVED beat kind. It was cut from the PoC on 23 Aug 2026 \u2014 the interactive is now the only scored object and nothing in a module gates. The name stays reserved so it is not recycled and so the vocabulary is unchanged when gating lands. Nothing generates, paginates, renders or gates it today.",
   "id": "cartoon",
   "name": "Cartoon",
@@ -92,7 +92,14 @@
   },
   "screens": {
     "module": "screens/module.html",
-    "ask": "screens/ask.html"
+    "ask": "screens/ask.html",
+    "interactive": "screens/interactive.html"
+  },
+  "_hosts_note": "WHERE A SCREEN TYPE MAY HOLD SOMETHING THAT IS NOT A BEAT. `Alexandria - World Spec`, \"Interactives are screens too\", writes this as a line inside a screen-type record — `screen: interactive_slide / hosts: [interactive]`, exactly 1, alone on the slide. This manifest has no screen-type record: `screens` is a name-to-template-path map and the world-loader contract requires it stay one. So the same declaration sits beside it, keyed by screen type, with the spec's own word and the spec's own value shape. It generalises to the spec's other row (`teach_slide: [\"concept\", \"worked_step\"]`) unchanged, if beat hosting ever moves off `pagination.screenFor`.",
+  "hosts": {
+    "interactive": [
+      "interactive"
+    ]
   },
   "module": {
     "_note": "Channels that belong to the module rather than to a beat. A beat is one screen of teaching; these are values the module carries as a whole. The ask screen needs one, and it cannot be a beat: every beat must satisfy the same schema, and `mascot_line` declares mustBeClaim, which a question fails by definition.",

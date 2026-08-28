@@ -170,6 +170,25 @@
   color: var(--muted);
 }
 
+/* ---- the interactive slide: a box, and no other opinion ----
+   The tenant inside here is not this world. A sandbox engine ships its own palette and
+   its own chrome, and the arena bar above it is Alexandria's surface rather than
+   Cartoon's, so the only thing this world is entitled to say is where the rectangle is.
+   It gets the board's own margins — the same left edge and width as the progress bar —
+   and a rounded edge to sit on. Nothing in here names the arena, and nothing in here
+   styles anything the arena draws. */
+.handover {
+  position: absolute;
+  left: 9.942cqw;                /*  136 / 1368 */
+  top: 14.249cqh;                /*  110 /  772 */
+  width: 84.795cqw;              /* 1160 / 1368 */
+  height: 78.756cqh;             /*  608 /  772 */
+  border: 2px solid var(--line);
+  border-radius: calc(20px * var(--box));
+  background: var(--paper);
+  overflow: hidden;              /* the corner radius has to cut the tenant, not float over it */
+}
+
 /* ---- controls: the archetype says which exist, this file says where and how ---- */
 .controls { position: absolute; inset: 0; pointer-events: none; }
 .controls [data-control] {
@@ -275,6 +294,19 @@
 [data-phase='entering'] .bubble { animation-delay: var(--enter-lag); }
 /* The card trails the bubble: she says the line, then the detail lands under it. */
 [data-phase='entering'] .card   { animation-delay: var(--card-lag); }
+
+/* The interactive box arrives on the same handoff as the text — the ask screen's words
+   are gone before it starts, so there is no frame with two things to read. Opacity only,
+   and no travel: the thing fading up owns its own frame and may already be painting
+   inside it, and sliding a live tenant across the board would read as the tenant moving. */
+@keyframes cartoon-hand-in { from { opacity: 0 } to { opacity: 1 } }
+[data-phase='entering'] .handover {
+  animation-name: cartoon-hand-in;
+  animation-duration: var(--enter-dur);
+  animation-delay: var(--enter-lag);
+  animation-timing-function: cubic-bezier(.22, .61, .36, 1);
+  animation-fill-mode: both;
+}
 
 /* Exits are not staggered and accelerate away — leaving should feel like one
    movement, not a queue. */

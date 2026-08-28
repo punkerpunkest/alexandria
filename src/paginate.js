@@ -78,6 +78,23 @@ export function paginate(world, beats, module = {}) {
   return screens;
 }
 
+// WHICH SCREEN TYPE MAY HOLD SOMETHING THAT IS NOT A BEAT. `Alexandria - World Spec`,
+// "Interactives are screens too": an interactive is a slide type in the sequence, it is a
+// screen at a slide boundary, and the WORLD declares where it can sit — exactly one, alone
+// on the slide. `hosts` carries that declaration, keyed by screen type.
+//
+// DELIBERATELY A LOOKUP AND NOT ANOTHER `screens.push`, which is the whole reason it sits
+// beside `paginate` rather than inside it. The interactive that plays at a boundary was
+// banked while the PREVIOUS module was being read, so at the moment a module is paginated
+// nobody knows whether there will be one — and a module whose interactive never landed must
+// not come out one screen longer than a module whose did. The projector opens this screen
+// when it has something to put in it, and the module's sequence is unchanged either way.
+export function hostScreen(world, hosted) {
+  const found = Object.entries(world?.hosts ?? {})
+    .find(([, list]) => Array.isArray(list) && list.includes(hosted));
+  return found ? found[0] : null;
+}
+
 // Gate 3's measurement: how long would a human spend reading this?
 // Counts every text channel the world declares, so it stays right when a world
 // renames one or adds another.

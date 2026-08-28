@@ -10,6 +10,10 @@
 // rather than against whichever world happens to exist.
 import { resolveAsset } from '/src/assets.js';
 import { playSet } from '/micro-card.js';
+// The arena is the OTHER tenant of the main surface, and it imports nothing from here. A
+// world is a shadow root because it ships no JavaScript; an engine is an iframe because it
+// does. See `docs/contracts/arena.md` — the boundary is why this is a mount, not a branch.
+import { mountArena } from '/arena/arena.js';
 // The plotter is runtime knowledge, in the same category as the archetype map below:
 // a world declares that a slot holds a figure, and the runtime knows what a figure is.
 // It lives in `public/` because the browser is where it draws, and `src/schema.js` and
@@ -616,6 +620,61 @@ function go(delta) {
 let banked = null;
 let bankRun = null;
 const stickyFixture = new URLSearchParams(location.search).get('fixture');
+// Which blessed answer the bank replays offline. `?fixture=max&interactive=sandbox` runs the
+// whole sandbox path — chooser, arena, engine, return channel — on zero quota; the default
+// keeps the card set, which is the boundary's normal case.
+const stickyInteractive = new URLSearchParams(location.search).get('interactive') ?? 'micro';
+
+// WHERE THE INTERACTIVE SITS, AND THE WORLD IS WHAT DECIDES. `Alexandria - World Spec`,
+// "Interactives are screens too": it is a slide type in the sequence, a screen at a slide
+// boundary, exactly one and alone on the slide. `hosts` names the screen type,
+// `data-slot="interactive"` inside that template says where in it — the same split as every
+// other slot, so the runtime owns the mount and the world owns the box. Read straight off
+// the manifest, exactly as `openingFrame` reads `pagination.closeWith`; the definition is
+// `hostScreen` in `src/paginate.js`, which the loader uses.
+const interactiveScreen = Object.entries(world.hosts ?? {})
+  .find(([, hosted]) => Array.isArray(hosted) && hosted.includes('interactive'))?.[0] ?? null;
+// THE INTERACTIVE'S OWN SURFACES, INSIDE WHATEVER ROOT THE WORLD DECLARED. Both the arena
+// and the micro card ship a stylesheet, and A SHADOW ROOT IS A SEPARATE DOCUMENT FOR CSS:
+// `micro-card.js` links its sheet into the chrome's <head>, which reached it while the card
+// played on the chrome's stage and reaches nothing once the world says where it sits. Caught
+// by looking — the unstyled card lost `position: absolute` and rendered below the arena,
+// outside the world's box, while the DOM said it was mounted. Same reason `presets.css` is
+// injected as text rather than linked. Fired at load, awaited at mount, once per root.
+const interactiveCss = Promise.all(
+  ['/arena/arena.css', '/micro-card.css'].map((u) => fetch(u).then((r) => r.text()).catch(() => '')),
+).then((sheets) => sheets.join('\n'));
+
+async function dress(node) {
+  const root = node.getRootNode();
+  const target = root === document ? document.head : root;
+  if (target.querySelector('style[data-interactive]')) return;
+  const style = document.createElement('style');
+  style.dataset.interactive = '';
+  style.textContent = await interactiveCss;
+  target.append(style);
+}
+
+// Open the world's interactive slide and hand back the box to mount into. It is NOT in
+// `screens`: it exists only while something is playing in it, so the module's own sequence
+// and its progress are the same whether an interactive landed or not. Nothing tears it down
+// either — the next module's `mount()` replaces the whole host.
+//
+// A world that declares no interactive slide still gets a boundary: it falls back to the
+// chrome's stage, which is where the card set played before any world declared anything.
+function openInteractive() {
+  if (!interactiveScreen || !templates[interactiveScreen] || !stack) return stage;
+  const node = el(templates[interactiveScreen]);
+  hoist(node);                                  // "alone on the slide" is this: whatever the
+  const scopes = [node, ...persisted.values()]; // template does not declare gets pruned
+  renderReadouts(scopes);
+  if (leaving) { leaving.remove(); leaving = null; }
+  if (current) retire(current, 'forward');
+  stack.append(node);
+  publish(node, {}, 'forward', scopes, new Set());
+  current = node;
+  return node.querySelector('[data-slot="interactive"]') ?? stage;
+}
 
 // Generated DURING READING, which is the only window it can be generated in without putting
 // a wait inside the wait. Never awaited by the caller: if it has not landed by the time the
@@ -624,7 +683,7 @@ function bankInteractive(moduleData, fixture) {
   banked = null;
   bankRun = fetch('/api/interactive', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(fixture ? { fixture: 'micro' } : { module: moduleData }),
+    body: JSON.stringify(fixture ? { fixture: stickyInteractive } : { module: moduleData }),
   }).then((r) => r.json())
     .then((d) => { banked = d?.set?.length ? d : null; return banked; })
     .catch(() => { banked = null; });
@@ -634,16 +693,46 @@ function bankInteractive(moduleData, fixture) {
 // Play whatever is banked, and resolve when the student is done with it. The module is
 // already generating underneath this — that is the whole point, and it is why nothing here
 // awaits the network.
-function playBanked() {
+async function playBanked(ready) {
+  const answer = banked;
+  banked = null;
+  const host = openInteractive();
+  const results = [];
+  await dress(host);            // both producers can end up drawing in here — see onDegrade
+
   return new Promise((resolve) => {
-    const set = banked;
-    banked = null;
-    const results = [];
-    playSet($('#stage'), {
-      cards: set.set,
+    const cards = () => playSet(host, {
+      cards: answer.set,
       onCard: (r) => results.push(r),
-      onDone: ({ skipped, answered }) => resolve({ skipped, answered, results }),
+      onDone: ({ skipped, answered }) => resolve({ producer: 'micro', skipped, answered, results }),
     });
+    if (answer.producer !== 'sandbox') return cards();
+
+    const live = mountArena(host, {
+      engine: answer.engine,
+      task: answer.task,          // { kind, params, sentence } — the sentence is the chrome's
+      banked: false,
+      // THE DEGRADE IS ALREADY PAID FOR. `readInteractive` carries a card set even when it
+      // chose an engine, precisely so a cold engine can be REPLACED rather than waited for:
+      // `Alexandria - Design` says the window is never empty and never spins. So the
+      // substitute costs no generation at all — it was written in the same turn as the
+      // choice, and this is the line that spends it.
+      onDegrade: () => cards(),
+      // There is no ledger, so the payload is logged and goes no further. Storage invented
+      // here would be the one component the build plan has at highest priority, guessed at.
+      // The mount is torn down because the caller owns teardown and the module underneath is
+      // not always there yet: a spent arena whose exit still looks pressable is worse than an
+      // empty box, and the micro card already removes itself at the same moment.
+      onResult: (r) => { live.destroy(); resolve({ producer: 'sandbox', result: r }); },
+    });
+    // The chrome's stage is a FALLBACK host, not a declared one — it has no box of its own to
+    // give a tenant, so the projector lends the mount the overlay the micro card gets from
+    // its own stylesheet. A world that declares an interactive slide never reaches this.
+    if (host === stage) live.el.style.cssText = 'position:absolute; inset:0; z-index:5;';
+    // The bank becoming visible: the exit reads `Continue` once the next module has landed.
+    // The only thing allowed to change the arena's chrome mid-mount, and the reason it is
+    // allowed is that without it the student is guessing whether leaving costs a wait.
+    ready?.then(() => live.setBanked(true));
   });
 }
 
@@ -667,7 +756,7 @@ async function askFor(question, fixture = null) {
   }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
 
   let played = null;
-  if (banked?.set?.length) played = await playBanked();
+  if (banked?.set?.length) played = await playBanked(pending);
 
   const data = await pending;
   busy = false;
@@ -685,7 +774,9 @@ async function askFor(question, fixture = null) {
     (m.readingTimeMs > m.wallMs ? '  COVERED' : '  NOT COVERED') +
     (data.degraded ? '\nDEGRADED: validation still failing, the plain world would take over' : ''));
   console.log('round trip incl. network', Math.round(performance.now() - t0), 'ms', data);
-  if (played) {
+  if (played?.producer === 'sandbox') {
+    console.log(`sandbox: ${played.result.engine.id}`, played.result);
+  } else if (played) {
     console.log(`micro: ${played.answered} card(s)${played.skipped ? ', skipped' : ''}`, played.results);
   }
   // Bank the NEXT interactive now, while this module is being read. Not awaited: the
