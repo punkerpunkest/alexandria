@@ -234,18 +234,42 @@ optical bench, which is no longer shipped; the lessons outlived it:
 
 ## Open, and not resolved here
 
-- **Nothing generates a task yet.** `buildTaskSchema` produces the schema Alexandria would
-  hand the model, mirroring `buildSchema` for worlds, but no caller fills it from a beat and
-  no prompt exists. The bench uses hand-written fixture tasks.
+> [!done] Three of these closed on 28 Aug, and are kept as a record of how
+> Task generation, the degrade's substitute and the mount point were all open when this
+> contract was written. They are now built; the rows below say what closed them.
+
+- ~~**Nothing generates a task yet.**~~ Closed. `src/interactive.js` builds one schema
+  carrying the engine choice, that engine's task parameters and a fallback card set, filled
+  in one turn — one call rather than two, because the adapter fixes its schema at spawn and
+  a process per purpose costs 4.5-13s against a window of 8-22s.
+- ~~**The degrade has nothing to substitute.**~~ Closed, and it cost nothing: the card set is
+  generated in the same breath as the engine choice and carried through `readInteractive`,
+  so `onDegrade` plays cards that already exist rather than starting a generation inside the
+  window it is meant to cover.
+- ~~**Nothing declares where the arena mounts.**~~ Closed. Cartoon declares an `interactive`
+  screen and a `hosts` block, and the arena mounts inside the world's own box.
+  > [!warning] The manifest shape is NOT the one `Alexandria - World Spec` writes
+  > The spec puts `hosts: [interactive]` inside a screen-type record. This manifest has no
+  > such record — `screens` is a name-to-path map, and rule E3 of
+  > `docs/contracts/world-loader.md` requires every value of it to stay a package-relative
+  > path. Nesting `{template, hosts}` there would have broken another lane's written
+  > contract, so the declaration sits beside `screens`, keyed by screen type, with the
+  > spec's word and value shape. Reasoning is recorded in the manifest's `_hosts_note`.
 - **There is no ledger**, so no payload has a destination. `Alexandria - Build Plan` has this
   at highest priority and calls the return channel the only scoring surface in the design.
-- **The degrade has nothing to substitute.** Micro card sets are first-party and unbuilt, so
-  `onDegrade` draws the notice and reports a named reason, and the caller supplies nothing.
-- **Nothing declares where the arena mounts.** The design says the world declares it; no
-  world does, and Cartoon's manifest explicitly disclaims interactives. Integration will
-  touch `public/app.js`, which is another lane's file.
-- **The matcher, the registry, the specificity tree.** All post-PoC; engines load from a
-  local folder.
+- **The matcher, the registry, the specificity tree.** Post-PoC, and now specified:
+  `docs/contracts/registry.md`. Engines still load from a local folder.
+- **`never-ready` cannot be reached through the real loop.** `offerable()` filters test
+  engines by subject, so no fixture can select one and the readiness deadline is reachable
+  only from the bench. A testability gap rather than a defect, but it means the degrade's
+  *timeout* path has no automated route.
+- **The degrade notice is painted over by its own substitute.** `.mcard` is
+  `position: absolute; inset: 0`, so it covers the bar and the quiet `--warn` line the
+  design asks for. Fixing it means touching either `arena.css` or `micro-card.css` to agree
+  on who positions what.
+- **A long task sentence is cut at roughly 60 characters.** The bar is `nowrap` with an
+  ellipsis while `SENTENCE_MAX` is 140. The chrome states the task, so it should be able to
+  state all of it.
 
 ## Verification run
 
