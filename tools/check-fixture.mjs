@@ -2,7 +2,7 @@
 // in the runtime is reached by a hostile case. Model-free, no network, milliseconds.
 // A red result is a real change: either a bug, or something to re-bless deliberately.
 import { readFile, readdir } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildSchema, buildSystemPrompt } from '../src/schema.js';
 import { paginate, readingTimeMs } from '../src/paginate.js';
@@ -11,6 +11,7 @@ import { resolveAsset, declaredAssets } from '../src/assets.js';
 import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/engine.js';
 import { validateMicro, answeringTimeMs, shapeCardResult } from '../src/micro.js';
 import { buildInteractiveSchema, readInteractive, validateInteractive, offerable } from '../src/interactive.js';
+import { validateManifest, MANIFEST_RULES } from '../src/manifest.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -225,6 +226,86 @@ const mres = shapeCardResult({ card: icBase.cards[0], index: 0, chosen: 1, timeO
 eq('micro stamps its producer', mres.producer, 'micro');
 eq('micro grades against the banked key', String(mres.correctness), 'true');
 eq('micro carries no notes — no agent is present when the answer lands', mres.notes, 'null\n');
+
+// ---- 6. the manifest validator -----------------------------------------------
+// `docs/contracts/world-loader.md` section 6 specifies these rules and says none of them
+// exist. They exist now, and this is what stops one being added without a case.
+//
+// The completeness sum in section 3 counts `throw new Error` in two files and
+// `failures.push` in a third, so a NEW file is invisible to it — the contract says as
+// much. Hence an explicit rule here rather than an extension of that count: every id in
+// MANIFEST_RULES must be the `rule` of at least one case below.
+{
+  const worldDir = (id) => join(ROOT, 'worlds', id);
+  const walk = async (dir, base = dir) => {
+    const out = [];
+    for (const d of await readdir(dir, { withFileTypes: true })) {
+      const p = join(dir, d.name);
+      if (d.isDirectory()) out.push(...await walk(p, base));
+      else out.push(relative(base, p).split(sep).join('/'));
+    }
+    return out;
+  };
+  // The package as it is on disk, read once per world: the file list rules E1-E3 need and
+  // the template text rules E7-E9 and F2 need. The validator itself stays pure — it is
+  // handed both rather than reaching for either.
+  // Read exactly the way `server.js` does, including its refusal to open a path the
+  // containment rule would reject — otherwise a case patching `screens` would be checked
+  // against templates the server would never have loaded.
+  const readTemplates = async (id, w) => {
+    const t = {};
+    for (const [k, p] of Object.entries(w.screens ?? {})) {
+      if (typeof p !== 'string' || p.startsWith('/') || /^[a-z]+:/i.test(p) || p.split('/').includes('..')) continue;
+      try { t[k] = await readFile(join(worldDir(id), p), 'utf8'); } catch { /* E3 reports it */ }
+    }
+    return t;
+  };
+  const pkg = {};
+  for (const id of ['cartoon', 'visual-novel', 'longform']) {
+    const w = await world(id);
+    pkg[id] = { w, files: await walk(worldDir(id)), templates: await readTemplates(id, w) };
+  }
+  const line = (r) => `${r.rule} ${r.severity}: ${r.reason}`;
+  const run = (id, world, templates) =>
+    validateManifest(world, { dir: id, files: pkg[id].files, templates }).map(line);
+
+  // EVERY SHIPPED WORLD LOADS. The strongest assertion in this section and the cheapest:
+  // a rule that rejects a world Alexandria actually ships is a wrong rule, and this is
+  // what catches one the moment it is written.
+  for (const id of ['cartoon', 'visual-novel', 'longform']) {
+    const errs = run(id, pkg[id].w, pkg[id].templates).filter((l) => l.includes(' error:'));
+    eq(`manifest/${id} loads clean`, JSON.stringify(errs), '[]');
+  }
+  // The visual novel's three standing F2 warnings are DELIBERATE — its README documents
+  // the empty opening stage as a designed state — so they are pinned rather than fixed.
+  eq('manifest/visual-novel keeps its three advisory warnings',
+     String(run('visual-novel', pkg['visual-novel'].w, pkg['visual-novel'].templates).length), '3');
+
+  const mc = await json('manifest/cases.json');
+  const covered = new Set();
+  for (const c of mc.cases) {
+    covered.add(c.rule);
+    const base = pkg[c.world];
+    const w = c.patch ? merge(base.w, c.patch) : base.w;
+    let templates = c.patch?.screens ? await readTemplates(c.world, w) : base.templates;
+    if (c.templatePatch) {
+      templates = { ...templates };
+      for (const [name, edits] of Object.entries(c.templatePatch)) {
+        for (const [find, replaceWith] of edits) templates[name] = templates[name].split(find).join(replaceWith);
+      }
+    }
+    // A case asserts the DELTA from the unpatched world, so a world's standing advisories
+    // do not have to be restated in every case that uses it.
+    const before = new Set(run(c.world, base.w, base.templates));
+    const delta = run(c.world, w, templates).filter((l) => !before.has(l));
+    eq(`manifest/${c.id}`, JSON.stringify(delta, null, 2) + '\n',
+       JSON.stringify(c.expect, null, 2) + '\n');
+  }
+  eq('every manifest rule has a case',
+     MANIFEST_RULES.filter((r) => !covered.has(r)).join(','), '');
+  eq('every manifest case names a real rule',
+     [...covered].filter((r) => !MANIFEST_RULES.includes(r)).join(','), '');
+}
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);
 if (fails.length) { console.log('\n' + fails.join('\n\n')); process.exit(1); }

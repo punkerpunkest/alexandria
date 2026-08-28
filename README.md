@@ -31,7 +31,13 @@ projector, the worlds and the chrome are byte-identical either way.
 ## The shape
 
 ```
-worlds/cartoon/world.json   manifest: channels, caps, asset vocabulary, motion
+worlds/<id>/world.json      manifest: channels, caps, asset vocabulary, motion
+      -> src/manifest.js   the manifest's own schema. Every package under
+                           `worlds/` is enumerated and validated at startup, so
+                           a broken world fails at LOAD with a named reason
+                           rather than mid-session. `WORLD=<id>` picks the
+                           default; `?world=<id>` and `/api/worlds` pick and
+                           list the rest
       -> src/schema.js     pure function: manifest -> JSON Schema (asset
                            descriptions folded into the enum description,
                            because the schema IS part of the prompt)

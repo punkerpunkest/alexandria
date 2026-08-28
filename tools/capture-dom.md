@@ -15,6 +15,13 @@ SNAPSHOT=1 PORT=4190 WORLD=longform     npm start
 `SNAPSHOT=1` enables `POST /api/_snapshot`, which writes into `fixtures/dom/`. It is off
 under a plain `npm start` and must never be on in anything a student runs.
 
+`WORLD=<id>` still selects which world a fresh page opens in, so these three lines are
+unchanged by multi-world loading. One thing did change and it matters here: every package
+under `worlds/` is now loaded and served by one process, and the page can switch between
+them. The snapshot body therefore takes an optional `world` — send the id the capture was
+taken FROM, or omit it and the boot world is assumed, which is what these three commands
+rely on. A session that has switched world and omits it will write the wrong directory.
+
 Then, for each of `4173/?fixture=max`, `4173/?fixture=min`, `4180/?fixture=max`,
 `4180/?fixture=min`, open the page and run the capture function from the console. It
 walks every screen with the archetype's own next control, so it stops where the

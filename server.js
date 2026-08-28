@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
-import { join, extname, dirname } from 'node:path';
+import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { join, extname, dirname, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Generator } from './src/claude.js';
 import { buildSchema, buildSystemPrompt } from './src/schema.js';
@@ -10,16 +10,121 @@ import { ENGINE_CSP, validateEngine } from './src/engine.js';
 import { buildInteractiveSchema, buildInteractivePrompt, readInteractive,
          validateInteractive, offerable } from './src/interactive.js';
 import { answeringTimeMs } from './src/micro.js';
+import { validateManifest, errorsOnly, reportText } from './src/manifest.js';
+import { declaredAssets } from './src/assets.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const WORLD_ID = process.env.WORLD ?? 'cartoon';
+const WORLDS_ROOT = join(ROOT, 'worlds');
+// THE DEFAULT WORLD, not THE world. `WORLD=<id>` still names which package a fresh
+// session opens in — every existing invocation, including tools/capture-dom.md, keeps
+// working — but it is now one parameter with a default rather than the single binding the
+// whole process was built around. Selection travels per request from here on.
+const DEFAULT_WORLD = process.env.WORLD ?? 'cartoon';
 // Hardcoding this made two worlds impossible to run side by side.
 const PORT = Number(process.env.PORT ?? 4173);
-const worldDir = join(ROOT, 'worlds', WORLD_ID);
-const world = JSON.parse(await readFile(join(worldDir, 'world.json'), 'utf8'));
+
+// THE PACKAGES DIRECTORY. Every directory under `worlds/` holding a `world.json` is a
+// package, discovered rather than named. `Alexandria - Storage` puts the drop target and
+// the install location in the same folder, so enumeration is the whole install step: an
+// author drags a folder in and it is there on the next boot.
+//
+// Every package is VALIDATED here, and that is the point of the enumeration. The failure
+// policy in CONTRACT.md says a broken world fails at LOAD, not mid-session, and until now
+// the only manifest rule enforced anywhere was one channel-kind throw. A package that
+// fails is kept in the registry, marked broken with its named reasons, and refused at
+// selection — which answers `Alexandria - Storage`'s open question in the direction that
+// helps the author who dropped it in: installed-and-broken, with the reasons legible,
+// rather than silently absent. What it may never do is take the other worlds down with it.
+const worldFiles = async (dir, base = dir) => {
+  const out = [];
+  for (const d of await readdir(dir, { withFileTypes: true })) {
+    const p = join(dir, d.name);
+    if (d.isDirectory()) out.push(...await worldFiles(p, base));
+    else out.push({ path: relative(base, p).split(sep).join('/'), bytes: (await stat(p)).size });
+  }
+  return out;
+};
+
+async function loadPackage(id) {
+  const dir = join(WORLDS_ROOT, id);
+  const pkg = { id, dir, ok: false, world: null, problems: [], bytes: 0, lastUsedAt: null };
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(join(dir, 'world.json'), 'utf8'));
+  } catch (err) {
+    // Named, never silent — and a package whose manifest will not parse cannot be run
+    // through the rules that read it, so this is its own reason rather than thirty.
+    pkg.problems = [{ rule: 'A0', where: 'world.json', severity: 'error',
+                      reason: `world "${id}": world.json is not readable JSON — ${err.message}` }];
+    return pkg;
+  }
+  pkg.world = manifest;
+  const files = await worldFiles(dir);
+  pkg.bytes = files.reduce((n, f) => n + f.bytes, 0);
+  pkg.files = files.map((f) => f.path);
+
+  // Templates are read here and handed to the validator, so rules E7-E9 and F2 see the
+  // same text the projector will. Anything the path rules would reject is not opened:
+  // E3 reports it, and reading it first is the traversal that rule exists to stop.
+  pkg.templates = {};
+  for (const [k, p] of Object.entries(manifest.screens ?? {})) {
+    if (typeof p !== 'string' || p.startsWith('/') || /^[a-z]+:/i.test(p) || p.split('/').includes('..')) continue;
+    try { pkg.templates[k] = await readFile(join(dir, p), 'utf8'); } catch { /* E3 reports it */ }
+  }
+
+  pkg.problems = validateManifest(manifest, { dir: id, files: pkg.files, templates: pkg.templates });
+  pkg.ok = errorsOnly(pkg.problems).length === 0;
+  return pkg;
+}
+
+const worlds = new Map();
+for (const d of (await readdir(WORLDS_ROOT, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+  if (!d.isDirectory()) continue;
+  try { await stat(join(WORLDS_ROOT, d.name, 'world.json')); } catch { continue; }  // not a package
+  worlds.set(d.name, await loadPackage(d.name));
+}
+for (const p of worlds.values()) {
+  const warnings = p.problems.filter((r) => r.severity === 'warning');
+  console.log(`[world] ${p.id.padEnd(13)} ${p.ok ? 'ok     ' : 'BROKEN '} ` +
+    `${(p.bytes / 1024).toFixed(0).padStart(5)}KB` +
+    `${p.ok ? '' : `, ${errorsOnly(p.problems).length} error(s)`}` +
+    `${warnings.length ? `, ${warnings.length} warning(s)` : ''}`);
+  if (p.problems.length) console.log(reportText(p.problems));
+}
+if (![...worlds.values()].some((p) => p.ok)) {
+  throw new Error(`no loadable world in ${WORLDS_ROOT}. Every installed package failed manifest validation.`);
+}
+if (!worlds.has(DEFAULT_WORLD)) {
+  throw new Error(`WORLD="${DEFAULT_WORLD}" is not installed. Installed: ${[...worlds.keys()].join(', ')}`);
+}
+if (!worlds.get(DEFAULT_WORLD).ok) {
+  throw new Error(`WORLD="${DEFAULT_WORLD}" failed manifest validation:\n` +
+                  reportText(errorsOnly(worlds.get(DEFAULT_WORLD).problems)));
+}
+
+// Selection, resolved per request. `?world=<id>` on a GET, `{ world: "<id>" }` in a POST
+// body, and the boot default when neither says. A missing package is a 404 and a broken
+// one a 400, both named, so a chrome asking for something it should not get is told which
+// of the two happened.
+function pick(id) {
+  const pkg = worlds.get(id || DEFAULT_WORLD);
+  if (!pkg) {
+    const e = new Error(`no world "${id}" is installed. Installed: ${[...worlds.keys()].join(', ')}`);
+    e.status = 404;
+    throw e;
+  }
+  if (!pkg.ok) {
+    const e = new Error(`world "${pkg.id}" failed manifest validation:\n` +
+                        reportText(errorsOnly(pkg.problems)));
+    e.status = 400;
+    throw e;
+  }
+  pkg.lastUsedAt = Date.now();
+  return pkg;
+}
 
 // ENGINES ARE LOADED ONCE, AT STARTUP, and a broken package stops the server rather than
-// surfacing mid-session. Same discipline as the world manifest above, and the failure
+// surfacing mid-session. Same discipline as the world manifests above, and the failure
 // policy asks for exactly this: a broken package fails at LOAD.
 const engines = [];
 for (const d of await readdir(join(ROOT, 'engines'), { withFileTypes: true })) {
@@ -31,12 +136,26 @@ for (const d of await readdir(join(ROOT, 'engines'), { withFileTypes: true })) {
 }
 const catalog = offerable(engines);
 
-const schema = buildSchema(world);
-const gen = new Generator({
-  schema,
-  model: process.env.MODEL ?? 'claude-haiku-4-5-20251001',
-  systemPrompt: buildSystemPrompt(world),
-}).start();
+// ONE GENERATOR PER WORLD, and lazily, because a generator is a PROCESS. The adapter
+// fixes its schema at spawn and a world's schema is compiled from its own manifest, so
+// worlds cannot share one. Spawning all of them at boot would multiply a 4.5-13s startup
+// by however many packages happen to be installed, for worlds the student may never open;
+// spawning per request would put that startup inside the wait it exists to cover. So: the
+// boot default starts now, exactly as it did when there was only one, and any other world
+// starts the first time it is actually asked for a module. Deterministic mode never
+// reaches this at all, which is why `?fixture=` costs nothing on any world.
+const generators = new Map();
+function generatorFor(pkg) {
+  if (!generators.has(pkg.id)) {
+    generators.set(pkg.id, new Generator({
+      schema: buildSchema(pkg.world),
+      model: process.env.MODEL ?? 'claude-haiku-4-5-20251001',
+      systemPrompt: buildSystemPrompt(pkg.world),
+    }).start());
+  }
+  return generators.get(pkg.id);
+}
+generatorFor(worlds.get(DEFAULT_WORLD));
 
 // THE SECOND GENERATOR, and it is a second PROCESS because it must be. The adapter fixes
 // its schema at spawn, so one schema per purpose means one process per purpose — and
@@ -76,7 +195,9 @@ function askPrompt(question) {
   return `The student asks: "${question}"\nWrite the module that answers it.`;
 }
 
-async function buildModule(question) {
+async function buildModule(pkg, question) {
+  const world = pkg.world;
+  const gen = generatorFor(pkg);
   const t0 = Date.now();
   let attempts = 0, repairs = 0, calls = [];
   let res = await gen.turn(askPrompt(question));
@@ -134,23 +255,62 @@ const send = (r, code, body, type = 'application/json') => {
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   try {
+    // THE LISTING. What is installed, whether it loads, and what the Settings list in
+    // `Alexandria - Storage` needs against each row: size, last used, and the reasons a
+    // broken package is broken. Switch / reveal / evict are the chrome's to draw; this is
+    // the data behind them, and `reveal` is already a `window.alexandria` call.
+    if (url.pathname === '/api/worlds') {
+      return send(res, 200, {
+        default: DEFAULT_WORLD,
+        worlds: [...worlds.values()].map((p) => ({
+          id: p.id,
+          name: p.world?.name ?? p.id,
+          version: p.world?.version ?? null,
+          archetype: p.world?.archetype ?? null,
+          ok: p.ok,
+          bytes: p.bytes,
+          // In-process only: there is no ledger yet, so this is "used since this server
+          // started" and not a durable fact. Named honestly rather than faked.
+          lastUsedAt: p.lastUsedAt,
+          problems: p.problems,
+        })),
+      });
+    }
     if (url.pathname === '/api/world') {
+      const pkg = pick(url.searchParams.get('id'));
       const screens = {};
-      for (const [k, p] of Object.entries(world.screens)) screens[k] = await readFile(join(worldDir, p), 'utf8');
-      return send(res, 200, { world, screens, css: await readFile(join(worldDir, 'styles.css'), 'utf8') });
+      for (const [k, p] of Object.entries(pkg.world.screens)) screens[k] = await readFile(join(pkg.dir, p), 'utf8');
+      return send(res, 200, {
+        id: pkg.id,
+        world: pkg.world,
+        screens,
+        // A world without a stylesheet is a world, not an error: `Alexandria - World
+        // Spec` says the minimum world is one file plus a folder of images. It gets the
+        // presets and nothing else rather than a 500 that blanks the stage.
+        css: await readFile(join(pkg.dir, 'styles.css'), 'utf8').catch(() => ''),
+        // THE WORKING SET, so the projector can warm it before it mounts. Every URL comes
+        // from `src/assets.js`, which is the only place a path is built — the projector
+        // preloads a list it was handed rather than composing one, exactly as it renders
+        // from a resolver rather than joining a string.
+        assets: [...new Set(Object.values(declaredAssets(pkg.world)).flatMap((m) => Object.values(m)))],
+      });
     }
     // CAPTURE HARNESS, off unless SNAPSHOT=1. The projector is browser code, so the DOM
     // snapshots in the golden fixture cannot be produced from Node. tools/capture-dom.md
     // documents the run. Never enabled by `npm start`.
     if (url.pathname === '/api/_snapshot' && req.method === 'POST' && process.env.SNAPSHOT === '1') {
       const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
-      const { variant, snapshots } = JSON.parse(body);
-      const dir = join(ROOT, 'fixtures', 'dom', `${WORLD_ID}.${variant}`);
+      const { variant, snapshots, world: from } = JSON.parse(body);
+      // The capture names the world it was taken FROM, so a session that switched worlds
+      // cannot write cartoon's stack into the visual novel's directory. Defaults to the
+      // boot world, which is how tools/capture-dom.md drives it.
+      const id = pick(from).id;
+      const dir = join(ROOT, 'fixtures', 'dom', `${id}.${variant}`);
       await mkdir(dir, { recursive: true });
       for (const [name, html] of Object.entries(snapshots)) {
         await writeFile(join(dir, `${name}.html`), indent(html) + '\n');
       }
-      console.log(`[snapshot] ${WORLD_ID}.${variant}: ${Object.keys(snapshots).length} files`);
+      console.log(`[snapshot] ${id}.${variant}: ${Object.keys(snapshots).length} files`);
       return send(res, 200, { written: Object.keys(snapshots).length, dir });
     }
     // WHAT PLAYS AT THIS BOUNDARY. One call decides between a sandbox and a card set and
@@ -195,27 +355,33 @@ createServer(async (req, res) => {
     }
     if (url.pathname === '/api/module' && req.method === 'POST') {
       const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
-      const { question, fixture } = JSON.parse(body || '{}');
+      const { question, fixture, world: from } = JSON.parse(body || '{}');
+      const pkg = pick(from ?? url.searchParams.get('world'));
 
       // DETERMINISTIC MODE. `{ fixture: "max" }` renders the blessed module from
       // fixtures/beats/ and never touches the adapter, so the app runs on zero quota.
       // It is what the DOM snapshots capture, and what makes the chrome and projector
       // workable without spending a student's subscription on every reload.
       if (fixture) {
-        const mod = JSON.parse(await readFile(join(ROOT, 'fixtures', 'beats', `${WORLD_ID}.${fixture}.json`), 'utf8'));
-        console.log(`[module] fixture "${fixture}" -> ${mod.beats.length} beats, no model call`);
+        const mod = JSON.parse(await readFile(join(ROOT, 'fixtures', 'beats', `${pkg.id}.${fixture}.json`), 'utf8'));
+        console.log(`[module] ${pkg.id} fixture "${fixture}" -> ${mod.beats.length} beats, no model call`);
         return send(res, 200, {
-          screens: paginate(world, mod.beats, mod),
+          screens: paginate(pkg.world, mod.beats, mod),
           degraded: false, remainingFailures: [],
-          metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(world, mod.beats, mod),
-                     wallMs: 0, repairs: 0, attempts: 0, costUsd: 0, startupMs: gen.startupMs,
-                     apiKeySource: gen.apiKeySource, ttftMs: 0, cacheReadTokens: 0 },
+          metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(pkg.world, mod.beats, mod),
+                     wallMs: 0, repairs: 0, attempts: 0, costUsd: 0,
+                     // Reported only if a generator for this world already exists.
+                     // Deterministic mode must never be the thing that spawns one.
+                     startupMs: generators.get(pkg.id)?.startupMs ?? 0,
+                     apiKeySource: generators.get(pkg.id)?.apiKeySource ?? 'none',
+                     ttftMs: 0, cacheReadTokens: 0 },
         });
       }
 
+      const gen = generatorFor(pkg);
       if (gen.unavailable) return send(res, 503, { error: gen.unavailable, setup: true });
-      const t = await buildModule(question || 'Teach me something interesting.');
-      console.log(`[module] "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
+      const t = await buildModule(pkg, question || 'Teach me something interesting.');
+      console.log(`[module] ${pkg.id} "${question}" -> ${t.metrics.beats} beats, ${t.metrics.wallMs}ms, ${t.metrics.repairs} repair(s), $${t.metrics.costUsd}`);
       return send(res, 200, t);
     }
     // ENGINE PACKAGES, served with a CSP that blocks EGRESS. An engine is third-party
@@ -268,6 +434,11 @@ createServer(async (req, res) => {
     // Named explicitly rather than serving src/, which would also expose the adapter.
     const file = url.pathname === '/src/assets.js'
       ? join(ROOT, 'src', 'assets.js')
+      // `src/archetypes.js` is shared for the third time and for the same reason: the
+      // manifest validator has to know from Node which archetypes exist and which
+      // readouts each publishes, and the projector has to render them. One table.
+      : url.pathname === '/src/archetypes.js'
+      ? join(ROOT, 'src', 'archetypes.js')
       : url.pathname === '/src/engine.js'
       ? join(ROOT, 'src', 'engine.js')
       // `src/micro.js` is shared the same way again: the server grades nothing, the card
@@ -279,9 +450,15 @@ createServer(async (req, res) => {
       : join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);
     return send(res, 200, await readFile(file), MIME[extname(file)] ?? 'application/octet-stream');
   } catch (err) {
-    return send(res, url.pathname.startsWith('/api') ? 500 : 404, { error: String(err.message ?? err) });
+    // `pick()` carries its own status: 404 for a package that is not installed, 400 for
+    // one that is installed and broken. The difference is the whole point of keeping a
+    // failed package in the registry rather than dropping it.
+    const fallback = url.pathname.startsWith('/api') ? 500 : 404;
+    return send(res, err.status ?? fallback, { error: String(err.message ?? err) });
   }
 }).listen(PORT, () => {
-  console.log(`\n  Alexandria spike — world "${world.name}"`);
+  const list = [...worlds.values()]
+    .map((p) => (p.id === DEFAULT_WORLD ? `${p.id}*` : p.ok ? p.id : `${p.id} (broken)`)).join(', ');
+  console.log(`\n  Alexandria spike — ${worlds.size} world(s): ${list}`);
   console.log(`  http://localhost:${PORT}\n`);
 });
