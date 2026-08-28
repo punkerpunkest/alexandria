@@ -9,6 +9,7 @@
 // a change to this file, which is why it is designed against the visual novel
 // rather than against whichever world happens to exist.
 import { resolveAsset } from '/src/assets.js';
+import { playSet } from '/micro-card.js';
 // The plotter is runtime knowledge, in the same category as the archetype map below:
 // a world declares that a slot holds a figure, and the runtime knows what a figure is.
 // It lives in `public/` because the browser is where it draws, and `src/schema.js` and
@@ -609,7 +610,45 @@ function go(delta) {
 
 // Every path to a new module goes through here: the world's ask input, and nothing
 // else. The chrome no longer hosts an ask — see `Alexandria - Design`.
+// THE BANK. What was written ahead and not yet shown, and its entire discipline is that it
+// draws nothing until the student acts. Filled during the reading of the module it follows,
+// so by the time the student asks their next question it is already there.
+let banked = null;
+let bankRun = null;
+const stickyFixture = new URLSearchParams(location.search).get('fixture');
+
+// Generated DURING READING, which is the only window it can be generated in without putting
+// a wait inside the wait. Never awaited by the caller: if it has not landed by the time the
+// boundary arrives, the boundary simply has nothing to play, which is today's behaviour.
+function bankInteractive(moduleData, fixture) {
+  banked = null;
+  bankRun = fetch('/api/interactive', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(fixture ? { fixture: 'micro' } : { module: moduleData }),
+  }).then((r) => r.json())
+    .then((d) => { banked = d?.set?.length ? d : null; return banked; })
+    .catch(() => { banked = null; });
+  return bankRun;
+}
+
+// Play whatever is banked, and resolve when the student is done with it. The module is
+// already generating underneath this — that is the whole point, and it is why nothing here
+// awaits the network.
+function playBanked() {
+  return new Promise((resolve) => {
+    const set = banked;
+    banked = null;
+    const results = [];
+    playSet($('#stage'), {
+      cards: set.set,
+      onCard: (r) => results.push(r),
+      onDone: ({ skipped, answered }) => resolve({ skipped, answered, results }),
+    });
+  });
+}
+
 async function askFor(question, fixture = null) {
+  fixture = fixture ?? stickyFixture;
   if (busy) return;
   busy = true;
   setStatus(fixture ? `rendering fixture "${fixture}"…` : 'writing the module…');
@@ -619,11 +658,18 @@ async function askFor(question, fixture = null) {
   stack?.setAttribute('data-busy', '');
 
   const t0 = performance.now();
-  const data = await fetch('/api/module', {
+  // FIRED, NOT AWAITED. The ask lands BEFORE the interactive, so the request is already in
+  // flight while the student works — which is what gives the wait somewhere to hide. See
+  // `Alexandria - PoC Flow`: the ordering is the whole trick.
+  const pending = fetch('/api/module', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify(fixture ? { fixture } : { question }),
   }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
 
+  let played = null;
+  if (banked?.set?.length) played = await playBanked();
+
+  const data = await pending;
   busy = false;
   stack?.removeAttribute('data-busy');
   if (!data?.screens) { setStatus(`generation failed: ${data?.error ?? 'unknown'}`); return; }
@@ -639,6 +685,12 @@ async function askFor(question, fixture = null) {
     (m.readingTimeMs > m.wallMs ? '  COVERED' : '  NOT COVERED') +
     (data.degraded ? '\nDEGRADED: validation still failing, the plain world would take over' : ''));
   console.log('round trip incl. network', Math.round(performance.now() - t0), 'ms', data);
+  if (played) {
+    console.log(`micro: ${played.answered} card(s)${played.skipped ? ', skipped' : ''}`, played.results);
+  }
+  // Bank the NEXT interactive now, while this module is being read. Not awaited: the
+  // student is reading, and nothing on screen may wait for it.
+  bankInteractive(data, fixture);
 }
 
 const setStatus = (t) => { $('#metrics').textContent = t; };
@@ -668,6 +720,9 @@ if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint a
 // so the app is runnable on zero quota and the DOM snapshots have a stable subject.
 // See fixtures/README.md.
 const fixtureParam = new URLSearchParams(location.search).get('fixture');
+// STICKY, so the whole LOOP runs offline rather than only the first module. Without this
+// the second ask would reach for the model and the one thing worth watching — a card set
+// covering a real generation — would need quota to see.
 if (fixtureParam) askFor(null, fixtureParam);
 
 $('#next').onclick = () => { if (archetype.controls.next) go(+1); };

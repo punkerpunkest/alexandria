@@ -1,0 +1,56 @@
+/* Alexandria's own surface, so Tokyo Night — the rule on the books is that a WORLD may
+   never read chrome tokens, and Alexandria reading its own is not that rule. The values are
+   set as scoped custom properties in `micro-card.js` rather than declared here on `:root`,
+   because a `:root` declaration is precisely the inheritance leak this file must not create. */
+.mcard {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column;
+  background: var(--mc-bg); color: var(--mc-text);
+  font: 15px/1.55 ui-monospace, "Hack Nerd Font", SFMono-Regular, Menlo, monospace;
+}
+.mcard-head {
+  flex: 0 0 56px; display: flex; align-items: center; gap: 16px;
+  padding: 0 22px; border-bottom: 1px solid var(--mc-border);
+}
+.mcard-count { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--mc-muted); }
+.mcard-skip {
+  margin-left: auto; min-width: 96px; padding: 8px 16px;
+  border: 1px solid var(--mc-border); border-radius: 10px;
+  background: transparent; color: var(--mc-muted); font: inherit; font-size: 13px; cursor: pointer;
+}
+.mcard-skip:hover { color: var(--mc-dim); border-color: var(--mc-muted); }
+
+.mcard-body { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 22px; }
+.mcard-front { margin: 0 0 20px; font-size: 19px; line-height: 1.45; }
+.mcard-back {
+  margin: 18px 0 0; padding: 16px 18px; border-radius: 12px;
+  background: var(--mc-surface); border: 1px solid var(--mc-border); color: var(--mc-dim);
+}
+.mcard-options { display: flex; flex-direction: column; gap: 10px; }
+.mcard-option {
+  text-align: left; padding: 13px 16px; border-radius: 12px;
+  border: 1px solid var(--mc-border); background: var(--mc-surface);
+  color: var(--mc-text); font: inherit; cursor: pointer;
+}
+.mcard-option:hover:not(:disabled) { border-color: var(--mc-accent); }
+.mcard-option:disabled { cursor: default; opacity: .75; }
+.mcard-option.is-right { border-color: var(--mc-ok); color: var(--mc-ok); opacity: 1; }
+.mcard-option.is-wrong { border-color: var(--mc-bad); color: var(--mc-bad); opacity: 1; }
+/* The key, shown when they missed it. Muted rather than celebratory: the response beneath
+   is doing the teaching, and two loud colours at once reads as a scoreboard. */
+.mcard-option.is-key { border-color: var(--mc-ok); opacity: 1; }
+
+.mcard-foot { flex: 0 0 auto; padding: 0 22px 22px; }
+.mcard-response { margin: 0 0 16px; padding: 14px 16px; border-radius: 12px; background: var(--mc-surface); }
+.mcard-response.is-right { border-left: 3px solid var(--mc-ok); }
+.mcard-response.is-wrong { border-left: 3px solid var(--mc-warn); }
+.mcard-rate { display: flex; gap: 10px; }
+.mcard-rate .mcard-option { flex: 1; text-align: center; }
+.mcard-primary {
+  min-width: 116px; padding: 11px 20px; border-radius: 10px;
+  border: 1px solid var(--mc-border); background: transparent;
+  color: var(--mc-dim); font: inherit; font-size: 13px; cursor: pointer;
+}
+.mcard-primary.is-banked {
+  background: var(--mc-accent); border-color: var(--mc-accent); color: var(--mc-bg); font-weight: 700;
+}

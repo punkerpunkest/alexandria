@@ -1,0 +1,312 @@
+{
+  "_note": "Hostile generated answers for the boundary chooser. Every rule in validateInteractive and validateMicro must be reached by a case. `patch` merges over base (from micro.json), null deletes.",
+  "rules": 15,
+  "cases": [
+    {
+      "id": "engine-that-is-not-installed",
+      "patch": {
+        "engine": "lattice-builder"
+      },
+      "failures": [
+        {
+          "scope": "engine",
+          "reason": "\"lattice-builder\" is not an installed engine"
+        }
+      ]
+    },
+    {
+      "id": "chose-an-engine-and-gave-it-nothing",
+      "patch": {
+        "engine": "microscope",
+        "sentence": "Go."
+      },
+      "failures": [
+        {
+          "scope": "engine",
+          "reason": "chose \"microscope\" but filled in no task parameters for it"
+        }
+      ]
+    },
+    {
+      "id": "no-cards-at-all",
+      "patch": {
+        "cards": []
+      },
+      "failures": [
+        {
+          "scope": "set",
+          "reason": "no cards returned"
+        }
+      ]
+    },
+    {
+      "id": "answer-index-past-the-options",
+      "patch": {
+        "cards": [
+          {
+            "type": "multiple-choice",
+            "front": "Q?",
+            "answer": 7,
+            "options": [
+              {
+                "text": "a",
+                "response": "r"
+              },
+              {
+                "text": "b",
+                "response": "r"
+              }
+            ]
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "answer 7 is not an index into 2 option(s)"
+        }
+      ]
+    },
+    {
+      "id": "option-with-no-banked-response",
+      "patch": {
+        "cards": [
+          {
+            "type": "multiple-choice",
+            "front": "Q?",
+            "answer": 0,
+            "options": [
+              {
+                "text": "a",
+                "response": "r"
+              },
+              {
+                "text": "b",
+                "response": "  "
+              }
+            ]
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "option 1 has no banked response, so answering it would need a round trip"
+        }
+      ]
+    },
+    {
+      "id": "flashcard-with-no-back",
+      "patch": {
+        "cards": [
+          {
+            "type": "flashcard",
+            "front": "cue"
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "flashcard has no back, so there is nothing to check against"
+        }
+      ]
+    },
+    {
+      "id": "card-of-an-unknown-type",
+      "patch": {
+        "cards": [
+          {
+            "type": "matching-pairs",
+            "front": "Q"
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "unknown card type \"matching-pairs\""
+        }
+      ]
+    },
+    {
+      "id": "empty-front",
+      "patch": {
+        "cards": [
+          {
+            "type": "flashcard",
+            "front": " ",
+            "back": "b"
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "front is empty"
+        }
+      ]
+    },
+    {
+      "id": "flashcard-carrying-mcq-fields",
+      "patch": {
+        "cards": [
+          {
+            "type": "flashcard",
+            "front": "cue",
+            "back": "b",
+            "answer": 0,
+            "options": [
+              {
+                "text": "a",
+                "response": "r"
+              },
+              {
+                "text": "b",
+                "response": "r"
+              }
+            ]
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "flashcard must not carry multiple-choice options"
+        },
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "flashcard must not carry an answer index"
+        }
+      ]
+    },
+    {
+      "id": "mcq-carrying-a-flashcard-back",
+      "patch": {
+        "cards": [
+          {
+            "type": "multiple-choice",
+            "front": "Q?",
+            "answer": 0,
+            "back": "b",
+            "options": [
+              {
+                "text": "a",
+                "response": "r"
+              },
+              {
+                "text": "b",
+                "response": "r"
+              }
+            ]
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "multiple-choice must not carry a flashcard back"
+        }
+      ]
+    },
+    {
+      "id": "too-few-options",
+      "patch": {
+        "cards": [
+          {
+            "type": "multiple-choice",
+            "front": "Q?",
+            "answer": 0,
+            "options": [
+              {
+                "text": "a",
+                "response": "r"
+              }
+            ]
+          }
+        ]
+      },
+      "failures": [
+        {
+          "scope": "cards",
+          "card": 0,
+          "reason": "multiple-choice needs at least 2 options, got 1"
+        }
+      ]
+    },
+    {
+      "id": "chose-an-engine-but-wrote-no-sentence",
+      "patch": {
+        "engine": "microscope",
+        "sentence": "  ",
+        "task_microscope__focus-specimen": {
+          "power": "400x",
+          "specimen": "onion-epidermis",
+          "start": "as-found-on-low-power",
+          "slide_label": "Onion"
+        }
+      },
+      "failures": [
+        {
+          "scope": "engine",
+          "reason": "chose \"microscope\" but wrote no sentence for the student"
+        }
+      ]
+    },
+    {
+      "id": "filled-two-task-kinds",
+      "patch": {
+        "engine": "microscope",
+        "sentence": "Go.",
+        "task_microscope__focus-specimen": {
+          "power": "400x",
+          "specimen": "onion-epidermis",
+          "start": "as-found-on-low-power",
+          "slide_label": "Onion"
+        },
+        "task_microscope__power-series": {
+          "top_power": "400x",
+          "specimen": "onion-epidermis",
+          "slide_label": "Onion"
+        }
+      },
+      "failures": [
+        {
+          "scope": "engine",
+          "reason": "filled parameters for 2 task kinds; exactly one is played"
+        }
+      ]
+    },
+    {
+      "id": "parameters-for-an-engine-not-chosen",
+      "patch": {
+        "engine": "microscope",
+        "sentence": "Go.",
+        "task_microscope__focus-specimen": {
+          "power": "400x",
+          "specimen": "onion-epidermis",
+          "start": "as-found-on-low-power",
+          "slide_label": "Onion"
+        },
+        "task_molecule-builder__build-target": {
+          "formula": "H2O",
+          "name": "water"
+        }
+      },
+      "failures": [
+        {
+          "scope": "engine",
+          "reason": "filled parameters for \"molecule-builder\", which was not chosen"
+        }
+      ]
+    }
+  ]
+}

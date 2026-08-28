@@ -1,12 +1,15 @@
 import { createServer } from 'node:http';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Generator } from './src/claude.js';
 import { buildSchema, buildSystemPrompt } from './src/schema.js';
 import { validate, repairPrompt } from './src/validate.js';
 import { paginate, readingTimeMs } from './src/paginate.js';
-import { ENGINE_CSP } from './src/engine.js';
+import { ENGINE_CSP, validateEngine } from './src/engine.js';
+import { buildInteractiveSchema, buildInteractivePrompt, readInteractive,
+         validateInteractive, offerable } from './src/interactive.js';
+import { answeringTimeMs } from './src/micro.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const WORLD_ID = process.env.WORLD ?? 'cartoon';
@@ -15,11 +18,38 @@ const PORT = Number(process.env.PORT ?? 4173);
 const worldDir = join(ROOT, 'worlds', WORLD_ID);
 const world = JSON.parse(await readFile(join(worldDir, 'world.json'), 'utf8'));
 
+// ENGINES ARE LOADED ONCE, AT STARTUP, and a broken package stops the server rather than
+// surfacing mid-session. Same discipline as the world manifest above, and the failure
+// policy asks for exactly this: a broken package fails at LOAD.
+const engines = [];
+for (const d of await readdir(join(ROOT, 'engines'), { withFileTypes: true })) {
+  if (!d.isDirectory()) continue;
+  const m = JSON.parse(await readFile(join(ROOT, 'engines', d.name, 'engine.json'), 'utf8'));
+  const bad = validateEngine(m);
+  if (bad.length) throw new Error(`engine "${d.name}": ${bad.map((f) => `${f.scope}: ${f.reason}`).join('; ')}`);
+  engines.push(m);
+}
+const catalog = offerable(engines);
+
 const schema = buildSchema(world);
 const gen = new Generator({
   schema,
   model: process.env.MODEL ?? 'claude-haiku-4-5-20251001',
   systemPrompt: buildSystemPrompt(world),
+}).start();
+
+// THE SECOND GENERATOR, and it is a second PROCESS because it must be. The adapter fixes
+// its schema at spawn, so one schema per purpose means one process per purpose — and
+// startup is 4.5-13s against a window of 8-22s, so spawning per boundary would cost more
+// than the wait it is meant to cover. Both start now, in parallel, behind the student
+// typing their first question.
+//
+// Caged on purpose, per `Alexandria - Interactives`: its own process, no tools, no history
+// of the session, and it never sees the main generator's conversation.
+const interactiveGen = new Generator({
+  schema: buildInteractiveSchema(catalog),
+  model: process.env.MICRO_MODEL ?? process.env.MODEL ?? 'claude-haiku-4-5-20251001',
+  systemPrompt: buildInteractivePrompt(catalog),
 }).start();
 
 const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
@@ -33,6 +63,15 @@ const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript
 // and it only ever recorded the FIRST beat of each module while forbidding "those
 // beats" wholesale. Measured effect: a follow-up dropped from 4 beats to 3 and from
 // ~10s to under 4s, because the model had been told there was less left to say.
+// The module just taught, as the only context the chooser gets. Deliberately not the
+// session: this is a side channel and should have a side channel's reach.
+function interactivePrompt(taught) {
+  const beats = (taught?.beats ?? []).map((b, i) => `${i + 1}. [${b.kind}] ` +
+    Object.entries(b).filter(([k]) => k !== 'kind').map(([, v]) => v).join(' | ')).join('\n');
+  return `The student has just read this module:\n\n${beats || '(nothing)'}\n\n` +
+    `Decide what they do next while the following module is written.`;
+}
+
 function askPrompt(question) {
   return `The student asks: "${question}"\nWrite the module that answers it.`;
 }
@@ -114,6 +153,46 @@ createServer(async (req, res) => {
       console.log(`[snapshot] ${WORLD_ID}.${variant}: ${Object.keys(snapshots).length} files`);
       return send(res, 200, { written: Object.keys(snapshots).length, dir });
     }
+    // WHAT PLAYS AT THIS BOUNDARY. One call decides between a sandbox and a card set and
+    // produces both, because the cards are also the substitute if the engine is cold.
+    if (url.pathname === '/api/interactive' && req.method === 'POST') {
+      const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
+      const { module: taught, fixture } = JSON.parse(body || '{}');
+
+      if (fixture) {
+        const out = JSON.parse(await readFile(join(ROOT, 'fixtures', 'interactive', `${fixture}.json`), 'utf8'));
+        const played = readInteractive(catalog, out);
+        console.log(`[interactive] fixture "${fixture}" -> ${played.producer}, no model call`);
+        return send(res, 200, { ...played, metrics: { fixture, answeringTimeMs: answeringTimeMs(played.set ?? []) } });
+      }
+      if (interactiveGen.unavailable) return send(res, 503, { error: interactiveGen.unavailable, setup: true });
+
+      const t0 = Date.now();
+      let res1 = await interactiveGen.turn(interactivePrompt(taught));
+      let failures = validateInteractive(catalog, res1.data);
+      let repairs = 0;
+      while (failures.length && repairs < 2) {
+        repairs++;
+        res1 = await interactiveGen.turn(repairPrompt(failures));
+        failures = validateInteractive(catalog, res1.data);
+      }
+      // DEGRADE RATHER THAN THROW. A boundary that cannot decide still has to put something
+      // in front of the student, and cards that failed validation are worse than none — so
+      // an unrepairable answer plays nothing and says why, and the wait becomes what it
+      // already is today.
+      if (failures.length) {
+        console.log(`[interactive] unrepairable: ${failures.map((f) => f.reason).join('; ')}`);
+        return send(res, 200, { producer: 'none', remainingFailures: failures, metrics: { wallMs: Date.now() - t0, repairs } });
+      }
+
+      const played = readInteractive(catalog, res1.data);
+      console.log(`[interactive] ${played.producer}${played.engine ? ` (${played.engine.id})` : ''}, ` +
+        `${played.set.length} card(s), ${Date.now() - t0}ms, ${repairs} repair(s)`);
+      return send(res, 200, { ...played, metrics: {
+        wallMs: Date.now() - t0, repairs, costUsd: res1.metrics.costUsd,
+        answeringTimeMs: answeringTimeMs(played.set),
+      } });
+    }
     if (url.pathname === '/api/module' && req.method === 'POST') {
       const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
       const { question, fixture } = JSON.parse(body || '{}');
@@ -191,6 +270,10 @@ createServer(async (req, res) => {
       ? join(ROOT, 'src', 'assets.js')
       : url.pathname === '/src/engine.js'
       ? join(ROOT, 'src', 'engine.js')
+      // `src/micro.js` is shared the same way again: the server grades nothing, the card
+      // grades locally, and both must agree on what a result looks like.
+      : url.pathname === '/src/micro.js'
+      ? join(ROOT, 'src', 'micro.js')
       : url.pathname.startsWith('/worlds/')
       ? join(ROOT, url.pathname)
       : join(ROOT, 'public', url.pathname === '/' ? 'index.html' : url.pathname);

@@ -9,6 +9,8 @@ import { buildSchema, buildSystemPrompt } from '../src/schema.js';
 import { paginate, readingTimeMs } from '../src/paginate.js';
 import { validate } from '../src/validate.js';
 import { buildTaskSchema, validateEngine } from '../src/engine.js';
+import { buildInteractiveSchema, offerable, readInteractive } from '../src/interactive.js';
+import { answeringTimeMs } from '../src/micro.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -43,9 +45,11 @@ for (const id of ['cartoon', 'visual-novel', 'longform']) {
 await mkdir(join(F, 'engines'), { recursive: true });
 const engineIds = (await readdir(join(ROOT, 'engines'), { withFileTypes: true }))
   .filter((d) => d.isDirectory()).map((d) => d.name).sort();
+const manifests = [];
 
 for (const id of engineIds) {
   const engine = JSON.parse(await readFile(join(ROOT, 'engines', id, 'engine.json'), 'utf8'));
+  manifests.push(engine);
   const bad = validateEngine(engine);
   if (bad.length) throw new Error(`engine "${id}" does not validate: ${JSON.stringify(bad)}`);
   const kinds = Object.keys(engine.taskSpace);
@@ -53,5 +57,20 @@ for (const id of engineIds) {
   console.log(`${id.padEnd(17)} ${engine.scored ? 'scored  ' : 'unscored'} ` +
     `kinds=${kinds.length} review=${engine.review} validate=clean`);
 }
+
+// THE BOUNDARY. The chooser's schema is derived from the installed catalog, so it is
+// blessed the same way a world's schema is — and a new engine changing it is a change
+// worth reading in a diff rather than discovering in a session.
+const catalog = offerable(manifests);
+await write('interactive/schema.json', buildInteractiveSchema(catalog));
+
+const timing = {};
+for (const name of ['micro', 'sandbox']) {
+  const out = JSON.parse(await readFile(join(F, 'interactive', `${name}.json`), 'utf8'));
+  timing[name] = answeringTimeMs(readInteractive(catalog, out).set);
+}
+await write('interactive/answering-time.json', timing);
+console.log(`boundary          engines=${catalog.length} ` +
+  `micro=${(timing.micro / 1000).toFixed(1)}s sandbox=${(timing.sandbox / 1000).toFixed(1)}s`);
 
 console.log('\ncaptured to fixtures/');

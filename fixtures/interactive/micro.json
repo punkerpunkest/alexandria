@@ -1,0 +1,33 @@
+{
+  "_note": "A blessed generated answer for a module where NO simulation fits, so cards play. Hand-curated once and frozen, exactly like fixtures/beats — an input to the deterministic lane, never regenerated. Reached with POST /api/interactive {\"fixture\":\"micro\"}, which runs the whole boundary on zero quota.",
+  "engine": "none",
+  "sentence": "",
+  "cards": [
+    {
+      "type": "multiple-choice",
+      "front": "A segment tree answers a range query by combining how many precomputed chunks?",
+      "options": [
+        { "text": "Exactly two, one from each half", "response": "That is the shape of a single split, but a range usually straddles more than one boundary on the way down." },
+        { "text": "At most O(log n) of them", "response": "Yes. The walk splits only where the range demands it, and it can only demand a split once per level." },
+        { "text": "All n leaves in the range", "response": "That is the brute-force scan the tree exists to avoid — if it read every leaf it would cost the same as no tree at all." },
+        { "text": "One, because the tree stores every range", "response": "Storing every possible range would need O(n squared) nodes. The tree stores a fixed set of chunks and combines them instead." }
+      ],
+      "answer": 1
+    },
+    {
+      "type": "flashcard",
+      "front": "Why does the query walk stop descending at some nodes?",
+      "back": "Because that node's range is fully inside the query range, so its stored answer is already the answer for that whole chunk. Descending further could only re-derive what it already holds."
+    },
+    {
+      "type": "multiple-choice",
+      "front": "Updating one element changes how many nodes in the tree?",
+      "options": [
+        { "text": "Only the leaf", "response": "The leaf's ancestors all summarise it, so leaving them stale would make every range containing that element wrong." },
+        { "text": "The leaf and its ancestors", "response": "Yes. That is one node per level, which is why an update is O(log n) rather than O(n)." },
+        { "text": "Every node in the tree", "response": "Most nodes summarise ranges that do not contain the changed element, so nothing about them changed." }
+      ],
+      "answer": 1
+    }
+  ]
+}

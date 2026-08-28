@@ -1,0 +1,28 @@
+{
+  "_note": "A blessed generated answer where a simulation DOES fit, so a sandbox plays and the cards become its degrade substitute. Same discipline as micro.json: curated once, frozen, never regenerated.",
+  "engine": "microscope",
+  "sentence": "Bring the onion cells into sharp focus at 400x, starting from low power.",
+  "task_microscope__focus-specimen": {
+    "power": "400x",
+    "specimen": "onion-epidermis",
+    "start": "as-found-on-low-power",
+    "slide_label": "Onion epidermis"
+  },
+  "cards": [
+    {
+      "type": "multiple-choice",
+      "front": "Why do you find the specimen on the lowest power objective first?",
+      "options": [
+        { "text": "Because the field of view is widest there", "response": "Yes. A high-power field is a fraction of a millimetre, so a specimen you have not centred is simply not in it." },
+        { "text": "Because low power gives a sharper image", "response": "Higher power resolves more detail, not less. The reason to start low is finding the specimen at all." },
+        { "text": "Because the coarse focus only works on low power", "response": "The coarse focus is unsafe on high power rather than inoperative, and that is a consequence of starting low rather than the reason for it." }
+      ],
+      "answer": 0
+    },
+    {
+      "type": "flashcard",
+      "front": "What happens if you use coarse focus with the 40x objective swung in?",
+      "back": "The objective sits about 60 micrometres above the slide and one coarse click moves the stage roughly 100. It drives the front lens into the glass, cracking the slide and damaging the objective."
+    }
+  ]
+}

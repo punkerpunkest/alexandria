@@ -9,6 +9,8 @@ import { paginate, readingTimeMs } from '../src/paginate.js';
 import { validate } from '../src/validate.js';
 import { resolveAsset, declaredAssets } from '../src/assets.js';
 import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/engine.js';
+import { validateMicro, answeringTimeMs, shapeCardResult } from '../src/micro.js';
+import { buildInteractiveSchema, readInteractive, validateInteractive, offerable } from '../src/interactive.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -173,6 +175,56 @@ eq('a cyclic attempt terminates', String(JSON.stringify(hostile.attempt).length 
 const unscored = shapeResult({ engine: { ...scored, scored: false }, raw: { correctness: true }, timeOnTaskMs: 10 });
 eq('unscored has no correctness key', String('correctness' in unscored), 'false');
 eq('unscored has no completed key', String('completed' in unscored), 'false');
+
+// ---- 5. the boundary: what plays after a module ------------------------------
+// The chooser, the card sets and the fallback, all model-free. These are the pieces the
+// loop needs and none of them may drift silently.
+const allEngines = [];
+for (const id of engineIds) {
+  allEngines.push(JSON.parse(await readFile(join(ROOT, 'engines', id, 'engine.json'), 'utf8')));
+}
+const catalog = offerable(allEngines);
+
+// A test fixture must never be offerable. `hostile-probe` mounts untrusted code on purpose
+// and `never-ready` never starts; a matcher that could pick either has a hole in it.
+eq('test engines are not offerable', catalog.map((e) => e.id).sort().join(','), 'microscope,molecule-builder');
+eq('interactive schema', buildInteractiveSchema(catalog), await read('interactive/schema.json'));
+
+for (const [name, want] of [['micro', 'micro'], ['sandbox', 'sandbox']]) {
+  const out = await json(`interactive/${name}.json`);
+  eq(`interactive/${name} validates`, validateInteractive(catalog, out), '[]\n');
+  const played = readInteractive(catalog, out);
+  eq(`interactive/${name} producer`, played.producer, want);
+  // The cards survive a sandbox choice on purpose: they are what the arena degrades TO.
+  eq(`interactive/${name} keeps its fallback cards`, String(played.set.length > 0), 'true');
+}
+eq('sandbox carries a sentence Alexandria wrote',
+   String(readInteractive(catalog, await json('interactive/sandbox.json')).task.sentence.length > 0), 'true');
+eq('answering time is stable', await json('interactive/answering-time.json'),
+   await read('interactive/answering-time.json'));
+
+const ic = await json('interactive/cases.json');
+const icBase = await json('interactive/micro.json');
+for (const c of ic.cases) {
+  eq(`interactive/hostile/${c.id}`, validateInteractive(catalog, merge(icBase, c.patch)),
+     JSON.stringify(c.failures, null, 2) + '\n');
+}
+const microRules = (await readFile(join(ROOT, 'src/micro.js'), 'utf8')).split('failures.push(').length - 1 + 1;
+const interRules = (await readFile(join(ROOT, 'src/interactive.js'), 'utf8')).split('failures.push(').length - 1;
+eq('every boundary rule has a hostile case', String(microRules + interRules), String(ic.rules));
+
+// NOTHING INSIDE A MICRO INTERACTIVE WAITS. A card whose chosen option has no banked
+// response would force a round trip between answering and responding, which is the one
+// rule micro exists to make structurally impossible.
+const banked = (await json('interactive/micro.json')).cards
+  .filter((c) => c.type === 'multiple-choice')
+  .every((c) => c.options.every((o) => o.response && o.response.trim().length > 0));
+eq('every option ships its response', String(banked), 'true');
+
+const mres = shapeCardResult({ card: icBase.cards[0], index: 0, chosen: 1, timeOnTaskMs: 4200 });
+eq('micro stamps its producer', mres.producer, 'micro');
+eq('micro grades against the banked key', String(mres.correctness), 'true');
+eq('micro carries no notes — no agent is present when the answer lands', mres.notes, 'null\n');
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);
 if (fails.length) { console.log('\n' + fails.join('\n\n')); process.exit(1); }
