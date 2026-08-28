@@ -35,7 +35,7 @@ function merge(base, patch) {
 
 // ---- 1. the golden outputs ---------------------------------------------------
 const modules = (await readdir(join(F, 'beats'))).filter((f) => f.endsWith('.json')).sort();
-for (const id of ['cartoon', 'visual-novel']) {
+for (const id of ['cartoon', 'visual-novel', 'longform']) {
   const w = await world(id);
   eq(`${id}/schema.json`, buildSchema(w), await read(`${id}/schema.json`));
   eq(`${id}/system-prompt.txt`, buildSystemPrompt(w) + '\n', await read(`${id}/system-prompt.txt`));
@@ -54,6 +54,12 @@ for (const id of ['cartoon', 'visual-novel']) {
 // The asset resolver is the ONLY place a path is built, so the check is that it
 // reproduces every asset URL in the blessed snapshots. A contract that lives as string
 // concatenation cannot be checked; this is what turns it into one.
+//
+// LONGFORM IS DELIBERATELY ABSENT from this loop and must stay absent. It ships no assets
+// at all — its only media is generated at runtime from a diagram spec — so it has no path
+// for the resolver to reproduce, and the `at least one asset` assertion below would fail on
+// a world that is behaving correctly. Adding it here would be testing the resolver against
+// a world that never calls it.
 for (const id of ['cartoon', 'visual-novel']) {
   const w = await world(id);
   const declared = new Set(Object.values(declaredAssets(w)).flatMap((m) => Object.values(m)));

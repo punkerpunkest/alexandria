@@ -9,6 +9,7 @@ procedure rather than a script.
 ```bash
 SNAPSHOT=1 PORT=4173 WORLD=cartoon      npm start
 SNAPSHOT=1 PORT=4180 WORLD=visual-novel npm start
+SNAPSHOT=1 PORT=4190 WORLD=longform     npm start
 ```
 
 `SNAPSHOT=1` enables `POST /api/_snapshot`, which writes into `fixtures/dom/`. It is off
@@ -52,6 +53,11 @@ rests on.
 
 Scene-sequential produces no backward snapshot, because it has no back control at all.
 That difference showing up in the files is the archetype contract being pinned.
+
+**Continuous does not walk at all.** It has no controls of any kind and every screen is
+already co-resident in the scroller, so a single capture of the stack IS every screen, and
+there is no `entering` moment to catch. `fixtures/dom/longform.*` therefore holds one
+`00-settled.html` each. Same principle: the shape of what is missing is the contract.
 
 ## Verifying
 

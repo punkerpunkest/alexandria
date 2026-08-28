@@ -1,0 +1,79 @@
+{
+  "_note": "Continuous world. Every section is co-resident in one scroller and scrolling is what advances; there are no controls at all. No cast, no shipped art \u2014 the only media is generated, from a diagram spec the model fills in. See README.md.",
+  "id": "longform",
+  "name": "Longform",
+  "version": "0.1.0",
+  "archetype": "continuous",
+  "beats": {
+    "min": 4,
+    "max": 7,
+    "kinds": [
+      "concept",
+      "misconception"
+    ],
+    "job": "concept carries one step of the explanation, in the order a reader needs them. misconception is the section that stops to name the wrong turn most readers take here, before the article goes on."
+  },
+  "pagination": {
+    "policy": "one-beat-per-screen",
+    "screenFor": {
+      "default": "section"
+    },
+    "closeWith": "ask"
+  },
+  "_viewport_note": "DELIBERATELY ABSENT, and this world is the reason the block is optional. Cartoon pins an artboard aspect because its layout is drawn art; the visual novel declares a range because it reflows within limits; this world has no vertical bound at all, because overflow is the archetype rather than a failure. Declaring a minHeight here would scale a scroller down to fit content it is supposed to scroll, and declaring an aspect would letterbox an article. The measure is held by the column itself (a max-width in ch), which is the right place for it: the constraint is on the line length, not on the panel.",
+  "voice": {
+    "person": "second person, addressed to one reader who is following along",
+    "register": "an explainer that respects the reader. Concrete, unhurried, no throat-clearing.",
+    "forbidden": [
+      "opening a section by announcing what the section will cover",
+      "any mention of being a model, an assistant, or generating anything",
+      "rhetorical questions used as transitions",
+      "second-person imperatives like \"imagine\" or \"picture this\""
+    ],
+    "samples": [
+      "Density is mass divided by volume, so the question is really about how much room the same water takes up at different temperatures.",
+      "Below four degrees the molecules start locking into the open lattice they will hold as ice, and an open lattice is a roomier one.",
+      "The surprising part is not that ice is less dense. It is that liquid water is densest well above its freezing point."
+    ]
+  },
+  "channels": {
+    "prose": {
+      "kind": "text",
+      "maxLength": 420,
+      "job": "One paragraph of the article. It carries the teaching on its own; nothing else on this section is required."
+    },
+    "note": {
+      "kind": "text",
+      "optional": true,
+      "maxLength": 120,
+      "job": "A short aside in the margin: a definition, a unit, a caveat, a number worth having. Omit it unless the margin genuinely earns it. Most sections have none.",
+      "_optional_note": "Optional means absence is MEANINGFUL, not a failure to answer. The schema leaves it out of `required`, the validator skips it when absent, and the projector clears the slot rather than inheriting the previous section's."
+    },
+    "figure": {
+      "kind": "diagram",
+      "optional": true,
+      "captionMaxLength": 120,
+      "job": "A graph, when a relationship is easier to see than to read. Best where one quantity varies with another and the shape of that variation is the point. Include one where the subject genuinely has such a relationship, and none at all where it does not \u2014 a topic with nothing to plot should have no figure rather than an invented one.",
+      "_fit_note": "Steered, never required. `atLeastOnce` was tried here and removed: it asserted at authoring time that every question this world receives is quantitative, which is a claim about SUBJECT MATTER rather than about consistency. On \"Why did the Roman Republic collapse?\" the model correctly omitted the figure, the validator called that a failure, and the repair loop forced it to invent \"General's political power, units\" reaching 2,981. A rule that can only be satisfied by fabricating is worse than no rule."
+    }
+  },
+  "motion": {
+    "_note": "Sections reveal on scroll, which is a scroll-driven animation in the world's own stylesheet and needs no published state. This duration is what the ask screen fades in with at stage 0.",
+    "duration": 220
+  },
+  "screens": {
+    "section": "screens/section.html",
+    "ask": "screens/ask.html"
+  },
+  "module": {
+    "channels": {
+      "ask_line": {
+        "kind": "text",
+        "maxLength": 110,
+        "job": "The closing line of the article, after the last section. Land what was worked out, then ask where the reader wants to go next. It must end in a question.",
+        "mustAsk": true,
+        "opening": "What do you want to read about?"
+      }
+    }
+  }
+}

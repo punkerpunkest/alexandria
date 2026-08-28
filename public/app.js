@@ -9,6 +9,12 @@
 // a change to this file, which is why it is designed against the visual novel
 // rather than against whichever world happens to exist.
 import { resolveAsset } from '/src/assets.js';
+// The plotter is runtime knowledge, in the same category as the archetype map below:
+// a world declares that a slot holds a figure, and the runtime knows what a figure is.
+// It lives in `public/` because the browser is where it draws, and `src/schema.js` and
+// `src/validate.js` import the grammar FROM here rather than restating it, so the
+// enum the model is given and the shapes the plotter can draw cannot drift apart.
+import { plot } from '/plot.js';
 // `public/host.js` is the chrome-to-host surface. It is deliberately NOT imported here:
 // the projector never talks to the application, and this file already uses `host` for the
 // shadow host, which is the older meaning and therefore the one that keeps the word.
@@ -43,6 +49,18 @@ const ARCHETYPES = {
               disabled: (at, count) => at >= count - 1 },
     },
     readouts: ['progress'],
+  },
+  // ONE SCROLL, NO CONTROLS AT ALL. Every screen is co-resident in the scroller and
+  // scrolling is what advances, so there is nothing to put in `controls` -- and the
+  // World Spec rule that an advance control can never be optional is satisfied
+  // vacuously rather than broken, because this archetype has no advance control to
+  // make optional. `scrolls` is the flag the projector branches on; it is the only
+  // archetype property that is not a control or a readout, and it earns that by
+  // changing the render MODE rather than the control set.
+  continuous: {
+    controls: {},
+    readouts: ['progress'],
+    scrolls: true,
   },
 };
 
@@ -208,7 +226,11 @@ const across = (scopes, attr) => scopes.flatMap((s) => marked(s, attr));
 // every navigation, and a browser can only animate between two states of ONE
 // element — so no crossfade, and any idle loop restarts from frame zero.
 // Never a rule about a particular world: the key is whatever the world chose.
-function hoist(node) {
+// `prune` exists for the continuous archetype, which hoists from EVERY screen before
+// any of them is filled. Pruning per node would then delete a key the first screen
+// declared the moment a later screen did not, so that path hoists with prune off and
+// prunes once at the end. The default keeps the one-screen-at-a-time path unchanged.
+function hoist(node, prune = true) {
   const declared = new Set();
   for (const fresh of marked(node, 'data-persist')) {
     const key = fresh.dataset.persist;
@@ -227,6 +249,11 @@ function hoist(node) {
     persisted.set(key, fresh);
   }
   // A key the incoming screen no longer declares has left the stage.
+  if (prune) prunePersisted(declared);
+  return declared;
+}
+
+function prunePersisted(declared) {
   for (const [key, node] of persisted) {
     if (!declared.has(key)) { node.remove(); persisted.delete(key); }
   }
@@ -236,22 +263,47 @@ function hoist(node) {
 // `data-changed` must be keyed on. Comparing the previous screen's fill instead marked
 // a slot changed whenever the previous screen merely had no opinion about it — so
 // stepping back off the beatless closing screen animated a byte-identical image.
+// A channel's value is normally a primitive, so identity is the right comparison. A
+// diagram's value is an object, and two structurally identical specs are never `===`,
+// which would mark the slot changed on every screen. Compare those by content.
+const sameValue = (a, b) =>
+  a === b || (a && b && typeof a === 'object' && typeof b === 'object' &&
+              JSON.stringify(a) === JSON.stringify(b));
+
 function fill(scopes, values) {
   const changed = new Set();
   for (const slot of across(scopes, 'data-slot')) {
     const key = slot.dataset.slot;
     if (key === 'controls' || key === 'ask') continue;   // runtime-owned, filled below
+    const ch = channelFor(key);
     // A slot the fill does not mention KEEPS its current value. This is what lets a
     // beatless screen inherit the persisted teacher's pose rather than blanking her
     // src to `mascot-undefined.webp`.
-    if (!(key in values)) continue;
-    const ch = channelFor(key);
-    if (rendered.get(key) !== values[key]) changed.add(key);
+    //
+    // An OPTIONAL channel is the exception, and it has to be: "absent" is a meaningful
+    // state for one, not an absence of opinion. A beat with no figure that inherited
+    // the previous beat's figure would be showing a graph of something it is not
+    // talking about, which is worse than showing nothing.
+    if (!(key in values)) {
+      if (ch?.optional && rendered.has(key)) { clear(slot, ch); rendered.delete(key); changed.add(key); }
+      continue;
+    }
+    if (!sameValue(rendered.get(key), values[key])) changed.add(key);
     rendered.set(key, values[key]);
-    if (ch?.set) slot.src = assetUrl(ch, values[key], values);
+    // The spec travels as DATA all the way here and becomes markup only at the last
+    // step, drawn by our own pure function. The model never emits markup, which is the
+    // rule that makes injecting this safe -- see `Alexandria - PoC Flow`, Longform.
+    if (ch?.kind === 'diagram') slot.innerHTML = values[key] == null ? '' : plot(values[key]);
+    else if (ch?.set) slot.src = assetUrl(ch, values[key], values);
     else slot.textContent = values[key] ?? '';
   }
   return changed;
+}
+
+function clear(slot, ch) {
+  if (ch.kind === 'diagram') slot.innerHTML = '';
+  else if (ch.set) slot.removeAttribute('src');
+  else slot.textContent = '';
 }
 
 // The ask. The runtime owns the input, focus and submit — forced, since a world ships
@@ -394,7 +446,69 @@ function retire(node, nav) {
   });
 }
 
+// CONTINUOUS. Every screen is present at once in one scroller, so there is no
+// current/leaving pair, no navigation and no `data-changed`: nothing is replacing
+// anything, and a comparison against "the previous screen" has no meaning when both
+// are on the page together. Every screen is `settled` on arrival, because there is no
+// entrance to stage. A world that wants sections to reveal as they scroll into view
+// uses a scroll-driven animation, which reads the scroller directly and needs no
+// published state at all — see `Alexandria - Rendering`.
+//
+// The scrolling itself is NOT implemented here. `.stack` is the projector's box and
+// the presets sheet says a world may style it, so a continuous world overrides it to
+// `display: block; overflow-y: auto` in its own stylesheet. The projector's business
+// is that every screen exists at once; what that looks like stays the world's.
+function renderScroll() {
+  stack.style.setProperty('--motion-duration', `${motionMs()}ms`);
+
+  const declared = new Set();
+  const nodes = screens.map((screen) => {
+    const node = el(templates[screen.type]);
+    for (const key of hoist(node, false)) declared.add(key);   // prune once, after all of them
+    return { node, values: screen.fill ?? screen.beats[0] ?? {} };
+  });
+  prunePersisted(declared);
+
+  const scopes = [...nodes.map((n) => n.node), ...persisted.values()];
+  for (const { node, values } of nodes) {
+    // Each screen gets its own fresh node, so `rendered` must not carry a value from
+    // the section above into the section below: they are siblings, not a succession.
+    rendered.clear();
+    fill([node, ...persisted.values()], values);
+    node.dataset.phase = 'settled';
+    if (values.kind) node.dataset.kind = values.kind;
+    stack.append(node);
+  }
+
+  renderControls(scopes);        // an empty set for this archetype, but never assumed
+  renderAsk(scopes);
+  trackScroll(scopes);
+  current = nodes.at(-1)?.node ?? null;
+
+  $('#progress').textContent = `${screens.length} sections`;
+  $('#back').disabled = true;
+  $('#next').disabled = true;
+  assertControlsReachable(scopes);
+}
+
+// Progress in a scrolling world is a position in the scroller, not an index into a
+// list of screens. Same published property, same world-side freedom to draw it as a
+// bar or a rail or nothing — only the source of the number changes. The listener dies
+// with the stack, which `mount()` replaces per module, so there is nothing to clean up.
+function trackScroll(scopes) {
+  const bars = across(scopes, 'data-readout').filter((r) => r.dataset.readout === 'progress');
+  if (!bars.length) return;
+  const update = () => {
+    const max = stack.scrollHeight - stack.clientHeight;
+    const v = max > 0 ? Math.min(1, Math.max(0, stack.scrollTop / max)) : 0;
+    for (const r of bars) r.style.setProperty('--progress', String(v));
+  };
+  stack.addEventListener('scroll', update, { passive: true });
+  update();
+}
+
 function render(nav = 'forward') {
+  if (archetype.scrolls) return renderScroll();
   const screen = screens[at];
   const values = screen.fill ?? screen.beats[0] ?? {};
   const node = el(templates[screen.type]);
@@ -429,6 +543,11 @@ function render(nav = 'forward') {
 // world-agnostic and checkable, so check it, rather than relying on an author
 // noticing at the one panel height they happen to develop at.
 function assertLayoutFits(node, scopes) {
+  // A scrolling world overflows its panel BY DESIGN — that is what the archetype is —
+  // so the check that catches a grown card in a fixed panel is meaningless here and
+  // would fire once per section below the fold. `Alexandria - World Spec` states the
+  // same split for text: a paginated world splits, a scrolling world scrolls.
+  if (archetype.scrolls) return;
   const panel = stack.getBoundingClientRect();
   if (!panel.height) return;
   const overlaps = (a, b) =>
@@ -551,17 +670,23 @@ if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint a
 const fixtureParam = new URLSearchParams(location.search).get('fixture');
 if (fixtureParam) askFor(null, fixtureParam);
 
-$('#next').onclick = () => go(+1);
+$('#next').onclick = () => { if (archetype.controls.next) go(+1); };
 $('#back').onclick = () => { if (archetype.controls.back) go(-1); };
 // The chrome's fallback controls are the archetype's too. A world that declares no
 // controls slot gets these, so offering Back here would reintroduce the same bug for
 // any world that simply did not write a template.
 $('#back').hidden = !archetype.controls.back;
+$('#next').hidden = !archetype.controls.next;
 addEventListener('keydown', (e) => {
   // Back is an ARCHETYPE property, not a chrome one. scene-sequential declares no
   // back control at all, and app.css only hides the footer BUTTON — the key binding
   // and the button's handler both survived that, so a world whose whole contract is
   // "forward only, with a history log" could still be walked backwards.
-  if (e.key === 'ArrowRight') go(+1);
+  //
+  // NEXT is gated for the same reason, added when `continuous` landed: that archetype
+  // declares NEITHER control, and an ungated ArrowRight would have stepped `at`
+  // through a list of screens that are all already on the page. Same lesson as before
+  // — hiding a control is not removing it — applied to the other half of the pair.
+  if (e.key === 'ArrowRight' && archetype.controls.next) go(+1);
   if (e.key === 'ArrowLeft' && archetype.controls.back) go(-1);
 });
