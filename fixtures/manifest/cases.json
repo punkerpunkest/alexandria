@@ -1,0 +1,438 @@
+{
+  "_note": "One case per rule in src/manifest.js, which is the manifest validator specified in docs/contracts/world-loader.md section 6. Completeness rule: every id in MANIFEST_RULES must appear as the `rule` of at least one case here, and every case must reproduce its `expect` list exactly. Adding a rule without a case turns check-fixture red, which is the point. Same conventions as fixtures/hostile/cases.json: `patch` is deep-merged over the named world's real manifest and `null` deletes a key. `templatePatch` is a list of [find, replace] pairs applied to a named template IN MEMORY, for the rules that read the declared templates. `expect` is the DELTA from the unpatched world's own report, so the visual novel's three standing F2 warnings do not have to be repeated in every case that uses it.",
+  "_s23": "Scenario S23 in the contract patches an extra key into cartoon's `mascot` asset set and expects E1. It does not fire, and the contract is out of date rather than the code: cartoon declares `values` explicitly, so `declaredAssets` enumerates the declared list and never reaches the new key. The C5 proper-subset warning is what that manifest actually earns. E1 is covered by S24's cross product instead, which is the more interesting half anyway — half a cross product is a world that breaks only when one character makes one face.",
+  "cases": [
+    {
+      "id": "id-mismatches-directory",
+      "rule": "A1",
+      "world": "cartoon",
+      "patch": { "id": "streak" },
+      "expect": [
+        "A1 error: world \"streak\": manifest id does not match its directory \"cartoon\"; every asset URL is composed from the id"
+      ]
+    },
+    {
+      "id": "no-beats-block",
+      "rule": "A2",
+      "world": "cartoon",
+      "patch": { "beats": null },
+      "expect": [
+        "A2 error: world \"cartoon\": no beats block",
+        "A3 error: world \"cartoon\": beats.kinds must be a non-empty list of beat kinds"
+      ]
+    },
+    {
+      "id": "kinds-missing",
+      "rule": "A3",
+      "world": "cartoon",
+      "patch": { "beats": { "kinds": null } },
+      "expect": [
+        "A3 error: world \"cartoon\": beats.kinds must be a non-empty list of beat kinds"
+      ]
+    },
+    {
+      "id": "beat-range-unsatisfiable",
+      "rule": "A4",
+      "world": "cartoon",
+      "patch": { "beats": { "min": 11 } },
+      "expect": [
+        "A4 error: world \"cartoon\": beats.min 11 is greater than beats.max 10; no response can satisfy the schema"
+      ]
+    },
+    {
+      "id": "beat-range-missing",
+      "rule": "A4",
+      "world": "visual-novel",
+      "patch": { "beats": { "min": null, "max": null } },
+      "expect": [
+        "A4 error: world \"visual-novel\": beats.min and beats.max are both required; without them the model is handed an unbounded beat array and a module stops having a length"
+      ]
+    },
+    {
+      "id": "require-unknown-kind",
+      "rule": "A5",
+      "world": "cartoon",
+      "patch": { "beats": { "require": ["worked-step"] } },
+      "expect": [
+        "A5 error: world \"cartoon\": beats.require names kind \"worked-step\", which is not in beats.kinds"
+      ]
+    },
+    {
+      "id": "no-channels",
+      "rule": "A6",
+      "world": "cartoon",
+      "patch": { "channels": null },
+      "expect": [
+        "A6 error: world \"cartoon\": no channels declared",
+        "E7 error: world \"cartoon\": screen \"module\" fills slot \"expression\", which is not a declared channel",
+        "E7 error: world \"cartoon\": screen \"module\" fills slot \"mascot_line\", which is not a declared channel",
+        "E7 error: world \"cartoon\": screen \"module\" fills slot \"body\", which is not a declared channel",
+        "E7 error: world \"cartoon\": screen \"ask\" fills slot \"expression\", which is not a declared channel"
+      ]
+    },
+    {
+      "id": "voice-forbidden-not-a-list",
+      "rule": "A7",
+      "world": "cartoon",
+      "patch": { "voice": { "forbidden": "none" } },
+      "expect": [
+        "A7 error: world \"cartoon\": voice.forbidden must be a list of strings"
+      ]
+    },
+    {
+      "id": "set-without-assets-block",
+      "rule": "A8",
+      "world": "cartoon",
+      "patch": { "assets": null },
+      "expect": [
+        "A8 error: world \"cartoon\": channel \"expression\" declares set \"mascot\" but the manifest has no assets block"
+      ]
+    },
+    {
+      "id": "archetype-unknown",
+      "rule": "A9",
+      "world": "cartoon",
+      "patch": { "archetype": "storybook" },
+      "expect": [
+        "A9 error: world \"cartoon\": unknown archetype \"storybook\". Known archetypes: paginated, scene-sequential, continuous"
+      ]
+    },
+    {
+      "id": "channel-named-kind",
+      "rule": "B1",
+      "world": "cartoon",
+      "patch": { "channels": { "kind": { "kind": "text", "maxLength": 10, "job": "hi" } } },
+      "expect": [
+        "B1 error: world \"cartoon\": channel \"kind\" collides with the beat's own kind field",
+        "E8 warning: world \"cartoon\": channel \"kind\" is generated on every beat and appears in no template"
+      ]
+    },
+    {
+      "id": "module-channel-named-beats",
+      "rule": "B2",
+      "world": "cartoon",
+      "patch": { "module": { "channels": { "beats": { "kind": "text", "maxLength": 5, "job": "x" } } } },
+      "expect": [
+        "B2 error: world \"cartoon\": module channel \"beats\" collides with the beats array",
+        "E8 warning: world \"cartoon\": module channel \"beats\" is generated on every module and appears in no template"
+      ]
+    },
+    {
+      "id": "name-in-both-scopes",
+      "rule": "B3",
+      "world": "cartoon",
+      "patch": { "module": { "channels": { "expression": { "kind": "text", "maxLength": 5, "job": "m" } } } },
+      "expect": [
+        "B3 error: world \"cartoon\": \"expression\" is declared as both a beat channel and a module channel"
+      ]
+    },
+    {
+      "id": "channel-kind-unknown",
+      "rule": "C1",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "kind": "markdown" } } },
+      "expect": [
+        "C1 error: world \"cartoon\": channel \"expression\" has unknown kind \"markdown\""
+      ]
+    },
+    {
+      "id": "text-without-cap",
+      "rule": "C2",
+      "world": "cartoon",
+      "patch": { "channels": { "body": { "maxLength": null } } },
+      "expect": [
+        "C2 error: world \"cartoon\": channel \"body\" is text and declares no maxLength; the panel has no defence against a long value"
+      ]
+    },
+    {
+      "id": "enum-with-neither-values-nor-set",
+      "rule": "C3",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "set": null, "values": null } } },
+      "expect": [
+        "C3 error: world \"cartoon\": channel \"expression\" resolves to an empty enum; no response can satisfy the schema"
+      ]
+    },
+    {
+      "id": "set-not-in-assets",
+      "rule": "C4",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "set": "mascots", "values": null } } },
+      "expect": [
+        "C4 error: world \"cartoon\": channel \"expression\" declares set \"mascots\", which is not in world.assets",
+        "C3 error: world \"cartoon\": channel \"expression\" resolves to an empty enum; no response can satisfy the schema",
+        "E2 warning: world \"cartoon\": asset set \"mascots\" declares no assetFormat; the projector will request .svg"
+      ]
+    },
+    {
+      "id": "value-outside-its-set",
+      "rule": "C5",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "values": ["explaining", "emphasizing"] } } },
+      "expect": [
+        "C5 error: world \"cartoon\": channel \"expression\" lists value \"emphasizing\", which is not a key of asset set \"mascot\"",
+        "D1 error: world \"cartoon\": channel \"expression\" restricts value \"considering\", which is not one of its own values",
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"emphasizing\" but assets/mascot-emphasizing.webp is not in the package"
+      ]
+    },
+    {
+      "id": "values-are-a-proper-subset",
+      "rule": "C5",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "values": ["explaining", "considering"] } } },
+      "expect": [
+        "C5 warning: world \"cartoon\": channel \"expression\": asset set \"mascot\" describes 5 options but only 2 are selectable; the extra descriptions are still folded into the prompt"
+      ]
+    },
+    {
+      "id": "channel-without-job",
+      "rule": "C6",
+      "world": "cartoon",
+      "patch": { "channels": { "body": { "job": null } } },
+      "expect": [
+        "C6 error: world \"cartoon\": channel \"body\" declares no job; the model is handed a field with no instruction"
+      ]
+    },
+    {
+      "id": "key-read-on-another-kind",
+      "rule": "C7",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "maxLength": 40 } } },
+      "expect": [
+        "C7 error: world \"cartoon\": channel \"expression\" declares maxLength, which is only read on a text channel"
+      ]
+    },
+    {
+      "id": "key-nothing-reads",
+      "rule": "C7",
+      "world": "cartoon",
+      "patch": { "channels": { "body": { "restricts": {} } } },
+      "expect": [
+        "C7 error: world \"cartoon\": channel \"body\" declares restricts, which the runtime never reads"
+      ]
+    },
+    {
+      "id": "restrict-value-outside-enum",
+      "rule": "D1",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "restrict": { "emphasising": "misconception" } } } },
+      "expect": [
+        "D1 error: world \"cartoon\": channel \"expression\" restricts value \"emphasising\", which is not one of its own values"
+      ]
+    },
+    {
+      "id": "restrict-kind-outside-beats-kinds",
+      "rule": "D1",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "restrict": { "considering": "worked-step" } } } },
+      "expect": [
+        "D1 error: world \"cartoon\": channel \"expression\" restricts to kind \"worked-step\", which is not in beats.kinds"
+      ]
+    },
+    {
+      "id": "restrict-on-a-module-channel",
+      "rule": "D2",
+      "world": "cartoon",
+      "patch": { "module": { "channels": { "ask_line": { "restrict": { "foo": "concept" } } } } },
+      "expect": [
+        "C7 error: world \"cartoon\": module channel \"ask_line\" declares restrict, which is only read on enum or asset channel",
+        "D2 error: world \"cartoon\": module channel \"ask_line\" declares restrict, which only applies to a beat"
+      ]
+    },
+    {
+      "id": "hold-with-an-unsupported-value",
+      "rule": "D3",
+      "world": "visual-novel",
+      "patch": { "channels": { "background": { "hold": "session" } } },
+      "expect": [
+        "D3 error: world \"visual-novel\": channel \"background\" declares hold \"session\"; the only supported value is \"module\""
+      ]
+    },
+    {
+      "id": "keyedby-names-nothing",
+      "rule": "D4",
+      "world": "visual-novel",
+      "patch": { "channels": { "speaker_face": { "keyedBy": "speaker" } } },
+      "expect": [
+        "D4 error: world \"visual-novel\": channel \"speaker_face\" is keyed by \"speaker\", which is not a declared channel"
+      ]
+    },
+    {
+      "id": "keyedby-names-a-text-channel",
+      "rule": "D4",
+      "world": "visual-novel",
+      "patch": { "channels": { "speaker_face": { "keyedBy": "line" } } },
+      "expect": [
+        "D4 error: world \"visual-novel\": channel \"speaker_face\" is keyed by \"line\", which is a text channel; its value would be composed into an asset path"
+      ]
+    },
+    {
+      "id": "mustbeclaim-and-mustask-together",
+      "rule": "D5",
+      "world": "cartoon",
+      "patch": { "channels": { "mascot_line": { "mustAsk": true } } },
+      "expect": [
+        "D5 error: world \"cartoon\": channel \"mascot_line\" declares both mustBeClaim and mustAsk, which cannot both hold"
+      ]
+    },
+    {
+      "id": "mustbeclaim-not-a-boolean",
+      "rule": "D5",
+      "world": "cartoon",
+      "patch": { "channels": { "mascot_line": { "mustBeClaim": "yes" } } },
+      "expect": [
+        "D5 error: world \"cartoon\": channel \"mascot_line\" declares mustBeClaim \"yes\", which must be a boolean"
+      ]
+    },
+    {
+      "id": "declared-asset-missing-across-a-composed-key",
+      "rule": "E1",
+      "world": "visual-novel",
+      "patch": { "assets": { "face": { "wink": "one eye closed" } } },
+      "expect": [
+        "E1 error: world \"visual-novel\": asset set \"face\" declares \"mei-wink\" but assets/face-mei-wink.webp is not in the package",
+        "E1 error: world \"visual-novel\": asset set \"face\" declares \"hana-wink\" but assets/face-hana-wink.webp is not in the package"
+      ]
+    },
+    {
+      "id": "assetformat-missing",
+      "rule": "E2",
+      "world": "cartoon",
+      "patch": { "assetFormat": { "mascot": null } },
+      "expect": [
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"explaining\" but assets/mascot-explaining.svg is not in the package",
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"considering\" but assets/mascot-considering.svg is not in the package",
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"highlighting\" but assets/mascot-highlighting.svg is not in the package",
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"cautioning\" but assets/mascot-cautioning.svg is not in the package",
+        "E1 error: world \"cartoon\": asset set \"mascot\" declares \"encouraging\" but assets/mascot-encouraging.svg is not in the package",
+        "E2 warning: world \"cartoon\": asset set \"mascot\" declares no assetFormat; the projector will request .svg"
+      ]
+    },
+    {
+      "id": "screen-not-in-the-package",
+      "rule": "E3",
+      "world": "cartoon",
+      "patch": { "screens": { "module": "screens/teach.html" } },
+      "expect": [
+        "E3 error: world \"cartoon\": screen \"module\" names screens/teach.html, which is not in the package",
+        "E8 warning: world \"cartoon\": channel \"mascot_line\" is generated on every beat and appears in no template",
+        "E8 warning: world \"cartoon\": channel \"body\" is generated on every beat and appears in no template"
+      ]
+    },
+    {
+      "id": "screen-escapes-the-package",
+      "rule": "E3",
+      "world": "cartoon",
+      "patch": { "screens": { "module": "../../CONTRACT.md" } },
+      "expect": [
+        "E3 error: world \"cartoon\": screen \"module\" points outside the package: \"../../CONTRACT.md\"",
+        "E8 warning: world \"cartoon\": channel \"mascot_line\" is generated on every beat and appears in no template",
+        "E8 warning: world \"cartoon\": channel \"body\" is generated on every beat and appears in no template"
+      ]
+    },
+    {
+      "id": "pagination-policy-unknown",
+      "rule": "E4",
+      "world": "cartoon",
+      "patch": { "pagination": { "policy": "two-beats-per-screen" } },
+      "expect": [
+        "E4 error: world \"cartoon\": unknown pagination policy \"two-beats-per-screen\". Known policies: one-beat-per-screen"
+      ]
+    },
+    {
+      "id": "screenfor-maps-to-an-undeclared-screen",
+      "rule": "E5",
+      "world": "cartoon",
+      "patch": { "pagination": { "screenFor": { "misconception": "correction" } } },
+      "expect": [
+        "E5 error: world \"cartoon\": pagination.screenFor maps to screen type \"correction\", which is not declared in world.screens"
+      ]
+    },
+    {
+      "id": "screenfor-has-no-default",
+      "rule": "E5",
+      "world": "cartoon",
+      "patch": { "pagination": { "screenFor": { "default": null } } },
+      "expect": [
+        "E5 error: world \"cartoon\": pagination.screenFor declares no screen type for beat kind \"concept\", and no default",
+        "E5 error: world \"cartoon\": pagination.screenFor declares no screen type for beat kind \"misconception\", and no default"
+      ]
+    },
+    {
+      "id": "closewith-undeclared",
+      "rule": "E6",
+      "world": "cartoon",
+      "patch": { "pagination": { "closeWith": "farewell" } },
+      "expect": [
+        "E6 error: world \"cartoon\": pagination.closeWith names screen type \"farewell\", which is not declared in world.screens"
+      ]
+    },
+    {
+      "id": "mistyped-slot",
+      "rule": "E7",
+      "world": "cartoon",
+      "templatePatch": { "module": [["data-slot=\"mascot_line\"", "data-slot=\"mascot_lin\""]] },
+      "expect": [
+        "E7 error: world \"cartoon\": screen \"module\" fills slot \"mascot_lin\", which is not a declared channel",
+        "E8 warning: world \"cartoon\": channel \"mascot_line\" is generated on every beat and appears in no template"
+      ]
+    },
+    {
+      "id": "channel-in-no-template",
+      "rule": "E8",
+      "world": "cartoon",
+      "patch": { "channels": { "aside": { "kind": "text", "maxLength": 60, "job": "An aside." } } },
+      "expect": [
+        "E8 warning: world \"cartoon\": channel \"aside\" is generated on every beat and appears in no template"
+      ]
+    },
+    {
+      "id": "readout-the-archetype-does-not-publish",
+      "rule": "E9",
+      "world": "cartoon",
+      "templatePatch": { "module": [["data-readout=\"progress\"", "data-readout=\"streak\""]] },
+      "expect": [
+        "E9 error: world \"cartoon\": screen \"module\" declares readout \"streak\", which archetype \"paginated\" does not publish"
+      ]
+    },
+    {
+      "id": "no-controls-slot-anywhere",
+      "rule": "E9",
+      "world": "cartoon",
+      "templatePatch": {
+        "module": [["data-slot=\"controls\"", "data-was=\"controls\""]],
+        "ask": [["data-slot=\"controls\"", "data-was=\"controls\""]]
+      },
+      "expect": [
+        "E9 warning: world \"cartoon\": no screen places data-slot=\"controls\", so archetype \"paginated\"'s required control \"next\" falls back to the chrome's placement"
+      ]
+    },
+    {
+      "id": "opening-outside-its-own-enum",
+      "rule": "F1",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "opening": "emphasizing" } } },
+      "expect": [
+        "F1 error: world \"cartoon\": channel \"expression\" declares opening \"emphasizing\", which is not one of its own values"
+      ]
+    },
+    {
+      "id": "opening-breaks-its-own-text-rules",
+      "rule": "F1",
+      "world": "visual-novel",
+      "patch": { "module": { "channels": { "ask_line": { "opening": "Right, let us begin." } } } },
+      "expect": [
+        "F1 error: world \"visual-novel\": module channel \"ask_line\" declares mustAsk, and its opening \"Right, let us begin.\" does not end in a question"
+      ]
+    },
+    {
+      "id": "opening-frame-slot-with-no-opening",
+      "rule": "F2",
+      "world": "cartoon",
+      "patch": { "channels": { "expression": { "opening": null } } },
+      "expect": [
+        "F2 warning: world \"cartoon\": screen \"ask\" fills slot \"expression\" from channel \"expression\", which declares no opening; it will be blank at stage 0"
+      ]
+    }
+  ]
+}

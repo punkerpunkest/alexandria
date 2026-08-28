@@ -27,47 +27,12 @@ import { plot } from '/plot.js';
 const $ = (s) => document.querySelector(s);
 const stage = $('#stage');
 
-// Archetypes are RUNTIME knowledge. The archetype decides which controls and
-// readouts exist; the world decides where they sit and what they look like, by
-// declaring data-slot="controls" / data-readout="<name>" in its template.
-// A world may place any subset. It may never add to the set, and it may never
-// omit one marked required.
-const ARCHETYPES = {
-  paginated: {
-    controls: {
-      // `hidden` and `disabled` belong here rather than in syncControls: they are
-      // this archetype's semantics. Scene-sequential has no free back at all, and
-      // continuous has neither control — those are its business, not the projector's.
-      back: { required: false, label: '', aria: 'Back', step: -1,
-              hidden:   (at) => at === 0 },
-      next: { required: true, label: 'Continue', aria: 'Continue', step: +1,
-              disabled: (at, count) => at >= count - 1 },
-    },
-    readouts: ['progress'],
-  },
-  // Forward only. No back control exists at all -- not hidden, not disabled, absent.
-  // A world that wants an arrow inside its dialogue box places data-slot="controls"
-  // there and dresses [data-control="next"]; placement was never the archetype's business.
-  'scene-sequential': {
-    controls: {
-      next: { required: true, label: 'Continue', aria: 'Continue', step: +1,
-              disabled: (at, count) => at >= count - 1 },
-    },
-    readouts: ['progress'],
-  },
-  // ONE SCROLL, NO CONTROLS AT ALL. Every screen is co-resident in the scroller and
-  // scrolling is what advances, so there is nothing to put in `controls` -- and the
-  // World Spec rule that an advance control can never be optional is satisfied
-  // vacuously rather than broken, because this archetype has no advance control to
-  // make optional. `scrolls` is the flag the projector branches on; it is the only
-  // archetype property that is not a control or a readout, and it earns that by
-  // changing the render MODE rather than the control set.
-  continuous: {
-    controls: {},
-    readouts: ['progress'],
-    scrolls: true,
-  },
-};
+// The archetype table MOVED to `src/archetypes.js`, unchanged. It had to become
+// Node-readable so the manifest validator can reject an unknown archetype at LOAD
+// (rule A9) and check a world's readouts against the ones its archetype publishes
+// (rule E9) — and this file cannot be imported from Node. One table, two readers,
+// no drift. What an archetype means is still entirely runtime knowledge.
+import { ARCHETYPES } from '/src/archetypes.js';
 
 // The world declares a duration, the runtime clamps and scales it. The clamp is
 // last so the ceiling is a real ceiling: motion is never allowed to be the
@@ -77,7 +42,14 @@ const MOTION_FLOOR_MS = 80;
 const SPEED = 1;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 
-let world, templates, presetCss, host, root, stack;
+// EVERYTHING BELOW THAT NAMES A WORLD IS NOW PER-MOUNT, not per-session. `world`,
+// `templates`, `worldCss` and `archetype` used to be bound once at module evaluation,
+// which is the browser half of the same "one world, chosen by an env var" shortcut the
+// server had. They are rebound by `adopt()` on every mount, and `unmount()` is what
+// guarantees nothing from the previous one is still reachable when that happens.
+// `presetCss` is Alexandria's own sheet and is deliberately NOT in that set: it is
+// fetched once and reused, because it belongs to the runtime rather than to a world.
+let world, worldId, templates, worldCss, archetype, presetCss, host, root, stack;
 let screens = [], at = 0, prev = null;
 // What each slot is actually SHOWING. Not the same as the previous screen's fill: a
 // slot the fill does not mention keeps its value, so the two diverge the moment a
@@ -86,18 +58,9 @@ let rendered = new Map();
 let current = null, leaving = null, panelWatcher = null, busy = false;
 let persisted = new Map();          // data-persist key -> the one live node
 
-const res = await fetch('/api/world').then((r) => r.json());
-world = res.world; templates = res.screens;
+// Alexandria's own presets, fetched once. The world's sheet is fetched per world, with
+// the world, and lives in `worldCss`.
 presetCss = await fetch('/presets.css').then((r) => r.text());
-$('#worldname').textContent = world.name;
-
-const archetype = ARCHETYPES[world.archetype];
-if (!archetype) throw new Error(`unknown archetype "${world.archetype}"`);
-
-// Does this world dress its own controls, or fall back to the chrome's?
-const declares = (attr) => Object.values(templates).some((t) => t.includes(attr));
-document.body.classList.toggle('world-controls', declares('data-slot="controls"'));
-document.body.classList.toggle('world-progress', declares('data-readout="progress"'));
 
 function motionMs() {
   if (reduced.matches) return 0;
@@ -109,9 +72,11 @@ function motionMs() {
 // root, where relative URLs would otherwise resolve against the document. Rewrite
 // them to the package, and leave data: and absolute URLs alone. This is also where
 // the off-package URL rejection from `Alexandria - Rendering` will live.
-function packageRelative(css) {
+// `id` is a parameter rather than a read of the module-level world, because the preloader
+// rewrites the INCOMING world's sheet while the outgoing one is still mounted.
+function packageRelative(css, id = world.id) {
   return css.replace(/url\((['"]?)([^'")]+)\1\)/g, (whole, quote, url) =>
-    /^(data:|https?:|\/\/|\/)/i.test(url) ? whole : `url(${quote}/worlds/${world.id}/${url}${quote})`);
+    /^(data:|https?:|\/\/|\/)/i.test(url) ? whole : `url(${quote}/worlds/${id}/${url}${quote})`);
 }
 
 // THE PANEL CONTRACT.
@@ -182,7 +147,7 @@ function mount() {
   const presets = document.createElement('style');
   presets.textContent = presetCss;
   const style = document.createElement('style');
-  style.textContent = packageRelative(res.css);
+  style.textContent = packageRelative(worldCss);
   root.append(presets, style);
 
   // The projector owns the box that screens and persisted elements share.
@@ -199,6 +164,237 @@ function mount() {
   panelWatcher?.disconnect();
   panelWatcher = new ResizeObserver(() => fitPanel());
   panelWatcher.observe(stage);
+}
+
+// THE OTHER HALF OF MOUNT, and it did not exist while there was only ever one world.
+// `mount()` is called once per module and replaces the stack; this is called once per
+// WORLD and has to leave nothing of the previous one reachable at all.
+//
+// The reason it is short is structural rather than lucky: every single thing a world puts
+// on the page — its presets sheet, its own stylesheet, the stack, the screens, and the
+// nodes the projector hoisted out of screens because the world marked them
+// `data-persist` — lives under one shadow host. So the teardown is one removal plus the
+// bookkeeping that outlives the DOM. The bookkeeping is the part worth being explicit
+// about: `persisted` holds live references to hoisted nodes, and `hoist` consults that map
+// BEFORE it looks at the DOM, so a stale entry would hand the next world an element from
+// the last one and never notice.
+function unmount() {
+  // Timers and observers first, so nothing can reach into a tree that is about to go.
+  panelWatcher?.disconnect();
+  panelWatcher = null;
+  // A screen still playing its exit is holding a `settleWhenDone` promise; both of its
+  // resolutions are guarded (`leaving !== node`, `node.isConnected`), so dropping the
+  // references here is enough to make them no-ops.
+  current = null;
+  leaving = null;
+
+  host?.remove();
+  stage.replaceChildren();
+  host = root = stack = null;
+
+  persisted = new Map();
+  rendered.clear();
+  screens = []; at = 0; prev = null;
+
+  // The bank was written for the OUTGOING world's module — it is that module's follow-on
+  // interactive. Carrying it across would put one world's boundary inside another's
+  // session, which is the one thing `Alexandria - Rendering` rules out outright: two
+  // worlds are never composited, and swapping happens at a boundary.
+  banked = null;
+  bankRun = null;
+
+  // Chrome state that was derived from the world's templates, not from the world.
+  document.body.classList.remove('world-controls', 'world-progress');
+  $('#worldname').textContent = '—';
+  $('#progress').textContent = '';
+}
+
+// Bind a fetched package. Everything here is a function of the payload and nothing of it
+// survives the next `unmount()`.
+function adopt(payload) {
+  worldId = payload.id;
+  world = payload.world;
+  templates = payload.screens;
+  worldCss = payload.css;
+
+  archetype = ARCHETYPES[world.archetype];
+  // Still thrown here, and it is now the SECOND line of defence rather than the first:
+  // manifest rule A9 rejects an unknown archetype at load, in Node, where a person can
+  // read the error. This one catches a projector and a validator that have drifted apart.
+  if (!archetype) throw new Error(`unknown archetype "${world.archetype}"`);
+
+  $('#worldname').textContent = world.name;
+
+  // Does this world dress its own controls, or fall back to the chrome's?
+  const declares = (attr) => Object.values(templates).some((t) => t.includes(attr));
+  document.body.classList.toggle('world-controls', declares('data-slot="controls"'));
+  document.body.classList.toggle('world-progress', declares('data-readout="progress"'));
+
+  // A control's EXISTENCE is an archetype fact, so it is re-derived per world rather than
+  // toggled. Switching from `paginated` to `scene-sequential` has to remove Back, not hide
+  // it — the click handler and the ArrowLeft binding both consult `archetype` live, which
+  // is what makes the removal real rather than cosmetic.
+  $('#back').hidden = !archetype.controls.back;
+  $('#next').hidden = !archetype.controls.next;
+}
+
+// PRELOAD BEFORE MOUNT. `Alexandria - Storage`: switching world is a BOUNDARY EVENT, the
+// new world preloads before it mounts, and the student never watches a loading state.
+// Both halves of that are load-bearing here.
+//
+// It runs while the OUTGOING world is still on screen, which is what makes the wait
+// invisible — the same trick as everywhere else in this codebase, hiding a cost behind
+// something the student is already looking at. And it is BOUNDED: `degrade, never wait`
+// means a slow package mounts with cold assets rather than holding the boundary open
+// indefinitely, so the deadline is a real deadline and not a timeout that never fires.
+//
+// Decoding matters as much as fetching. An image that has been fetched but not decoded
+// still costs a decode at first paint, and that is the sprite pop-in mid-scene that
+// `Alexandria - Rendering` names as the only realistic source of in-session lag. `decode()`
+// is what turns the render into a lookup.
+const PRELOAD_DEADLINE_MS = 4000;
+function preload(payload) {
+  const images = payload.assets ?? [];
+  // Fonts and any other `url()` in the world's stylesheet. They are not in `assets` —
+  // that list is the manifest's declared asset sets — but they are fetched the instant the
+  // sheet is attached, so warming the HTTP cache here is the difference between text
+  // appearing in the world's face and text appearing in a fallback first.
+  const inCss = [...packageRelative(payload.css ?? '', payload.id)
+    .matchAll(/url\((['"]?)([^'")]+)\1\)/g)].map((m) => m[2]).filter((u) => !/^data:/i.test(u));
+
+  const total = images.length + inCss.length;
+  if (!total) return Promise.resolve({ warmed: 0, total: 0, timedOut: false });
+
+  let warmed = 0;
+  const image = (url) => new Promise((done) => {
+    const img = new Image();
+    // A miss is not the boundary's problem to report: manifest rule E1 checks every
+    // declared asset against the package at LOAD, so anything 404ing here was already
+    // named there. Degrade past it rather than stalling the switch.
+    img.onerror = () => done();
+    img.onload = () => {
+      warmed++;
+      done();
+      // DECODE IS FIRED AND NEVER AWAITED, which cost a measurement to learn. `decode()`
+      // is the call that turns first paint into a lookup, but it runs on the rendering
+      // pipeline, and in a HIDDEN tab that pipeline is throttled: measured on 28 Aug, an
+      // asset loads in 15ms and its `decode()` promise is still unsettled two and a half
+      // seconds later. Awaiting it meant a switch made with the window occluded burned
+      // the whole deadline and mounted 0/29 warm — the preloader defeating itself in
+      // exactly the case it was meant to cover. Bytes in cache is the guarantee; a warm
+      // decode is the bonus, and it lands on its own whenever the tab is visible.
+      img.decode?.().catch(() => {});
+    };
+    img.src = url;
+  });
+  const other = (url) => fetch(url).then(() => { warmed++; }).catch(() => {});
+
+  let timedOut = true;
+  return Promise.race([
+    Promise.all([...images.map(image), ...inCss.map(other)]).then(() => { timedOut = false; }),
+    new Promise((r) => setTimeout(r, PRELOAD_DEADLINE_MS)),
+  ]).then(() => ({ warmed, total, timedOut }));
+}
+
+async function fetchWorld(id) {
+  const r = await fetch('/api/world' + (id ? `?id=${encodeURIComponent(id)}` : ''));
+  const payload = await r.json().catch(() => ({}));
+  // A package that failed manifest validation answers 400 with every named reason. It has
+  // already been refused at load; this is the browser being told why rather than being
+  // handed an `undefined` world and throwing a TypeError into a blank stage.
+  if (!r.ok) throw new Error(payload.error ?? `/api/world -> HTTP ${r.status}`);
+  return payload;
+}
+
+// Fetch, warm, tear down, mount. In that order for a SWITCH, and the order is the whole
+// design: the outgoing world is not removed until the incoming one is ready to take the
+// screen, so the warm-up happens behind a world the student is still looking at.
+//
+// THE FIRST MOUNT IS THE EXCEPTION, and it has to be. There is no outgoing world to hide
+// behind, and `Alexandria - Cold Start` stage 0 is "painted locally with no model call at
+// all" and "never blocks" — so waiting on a working set before the first frame trades the
+// one guarantee stage 0 exists to make for a warmth nothing has asked for yet.
+//
+// It is also a measured deadlock rather than a principle applied for its own sake. This
+// module's top-level `await` runs during document load, and a `new Image()` started there
+// is low priority: the browser defers it until loading settles, and loading cannot settle
+// while this await is outstanding. The visual novel's 29 assets warmed 0/29 in 4s that
+// way, against 29/29 in 578ms as a switch from an already-painted page. So the first world
+// paints and then warms, and every switch after it warms and then paints.
+async function openWorld(id) {
+  const t0 = performance.now();
+  const payload = await fetchWorld(id);
+  const isSwitch = !!host;
+  const warm = isSwitch ? await preload(payload) : null;
+
+  unmount();
+  adopt(payload);
+  if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint at stage 0');
+
+  console.log(`[world] mounted "${payload.id}" — ` +
+    (warm ? `${warm.warmed}/${warm.total} asset(s) warm${warm.timedOut ? ' (deadline hit, mounted anyway)' : ''}, `
+          : 'first mount, warming behind stage 0, ') +
+    `${Math.round(performance.now() - t0)}ms`);
+
+  // Not awaited, deliberately: the frame is already on screen and this is stage 5's
+  // "streams in the background" applied to the world the session started in.
+  if (!isSwitch) {
+    preload(payload).then((w) =>
+      console.log(`[world] "${payload.id}" working set warm: ${w.warmed}/${w.total}`));
+  }
+  return payload;
+}
+
+// A switch is a boundary, and a boundary is not a moment mid-generation. Refusing while a
+// module is in flight is the same rule as "applied at a boundary, never mid-scene": the
+// alternative is a module written against one world's channels rendering into another's
+// templates, which is the exact leak the shadow root cannot catch.
+let switching = false;
+async function switchWorld(id) {
+  if (switching || busy || id === worldId) return false;
+  switching = true;
+  try {
+    await openWorld(id);
+    const sel = document.getElementById('dev-world');   // dev only; absent by default
+    if (sel) sel.value = worldId;
+    // Deterministic mode is sticky per session, so a switch inside it renders the new
+    // world's blessed module rather than stranding the student on stage 0.
+    if (stickyFixture) await askFor(null, stickyFixture);
+    return true;
+  } catch (err) {
+    setStatus(`could not switch world: ${err.message}`);
+    return false;
+  } finally {
+    switching = false;
+  }
+}
+
+// DEV ONLY, and gated on `?dev=1` so it is absent from the chrome by default.
+//
+// The Settings list of installed worlds — size, last used, and switch / reveal / evict
+// against each — is a CHROME surface in the chrome's voice (`Alexandria - Storage`), and
+// the chrome is another lane's. This is deliberately NOT that: it is a bare `<select>`
+// that exercises the switching mechanism so it can be driven and screenshotted without
+// pre-empting a design this lane has no business making. `/api/worlds` is the surface the
+// real list will be built on; this is the smallest possible consumer of it.
+async function devWorldSwitcher() {
+  const { worlds } = await fetch('/api/worlds').then((r) => r.json());
+  const sel = document.createElement('select');
+  sel.id = 'dev-world';
+  sel.title = 'dev only — switch world';
+  sel.style.cssText = 'margin-left:.75rem;font:inherit;font-size:.75rem';
+  for (const w of worlds) {
+    const o = document.createElement('option');
+    o.value = w.id;
+    o.textContent = `${w.name} · ${(w.bytes / 1024 / 1024).toFixed(1)}MB${w.ok ? '' : ' · BROKEN'}`;
+    o.disabled = !w.ok;
+    o.selected = w.id === worldId;
+    sel.append(o);
+  }
+  sel.addEventListener('change', () => switchWorld(sel.value));
+  document.querySelector('header').append(sel);
+  // Same reasoning, for anything driving the app programmatically.
+  globalThis.__alexandriaDev = { switchWorld, openWorld, worlds };
 }
 
 function el(html) {
@@ -752,7 +948,10 @@ async function askFor(question, fixture = null) {
   // `Alexandria - PoC Flow`: the ordering is the whole trick.
   const pending = fetch('/api/module', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(fixture ? { fixture } : { question }),
+    // The world travels with the request. It used to be a boot-time constant on the
+    // server, so the module and the templates it renders into could not disagree; now
+    // they could, and this is what keeps them from it.
+    body: JSON.stringify({ world: worldId, ...(fixture ? { fixture } : { question }) }),
   }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
 
   let played = null;
@@ -805,12 +1004,30 @@ function openingFrame() {
   return true;
 }
 
-if (!openingFrame()) setStatus('world declares no ask screen; nothing to paint at stage 0');
+// THE FIRST MOUNT. `?world=<id>` opens a specific package; without it the server's own
+// default — `WORLD=<id>` or `cartoon` — decides, which is exactly what happened before
+// multiple worlds existed. So every existing invocation opens the same world it always
+// did, and selection is now a parameter with a default rather than a boot-time constant.
+const params = new URLSearchParams(location.search);
+try {
+  await openWorld(params.get('world'));
+} catch (err) {
+  // DEGRADE, NEVER WAIT, applied to the one parameter a person types by hand. An id that
+  // is not installed, or one whose package failed manifest validation, used to leave the
+  // module dead on an unhandled rejection: blank stage, empty chrome, nothing to read —
+  // which is the failure `docs/contracts/world-loader.md` describes and this lane exists
+  // to remove. Say what happened and open the default instead, so a typo costs a sentence
+  // rather than the session.
+  console.warn(`[world] ${err.message}`);
+  setStatus(`${err.message}\nopening the default world instead.`);
+  await openWorld(null);
+}
+if (params.get('dev') === '1') devWorldSwitcher();
 
 // DETERMINISTIC MODE. `?fixture=max` renders the blessed module with no model call,
 // so the app is runnable on zero quota and the DOM snapshots have a stable subject.
 // See fixtures/README.md.
-const fixtureParam = new URLSearchParams(location.search).get('fixture');
+const fixtureParam = params.get('fixture');
 // STICKY, so the whole LOOP runs offline rather than only the first module. Without this
 // the second ask would reach for the model and the one thing worth watching — a card set
 // covering a real generation — would need quota to see.
@@ -821,8 +1038,11 @@ $('#back').onclick = () => { if (archetype.controls.back) go(-1); };
 // The chrome's fallback controls are the archetype's too. A world that declares no
 // controls slot gets these, so offering Back here would reintroduce the same bug for
 // any world that simply did not write a template.
-$('#back').hidden = !archetype.controls.back;
-$('#next').hidden = !archetype.controls.next;
+//
+// Their `hidden` state moved into `adopt()`, because it is a fact about the MOUNTED
+// world rather than about the session: set once here it would have been right for the
+// world the session opened in and wrong for every world switched to afterwards.
+// The handlers stay, and read `archetype` live for exactly the same reason.
 addEventListener('keydown', (e) => {
   // Back is an ARCHETYPE property, not a chrome one. scene-sequential declares no
   // back control at all, and app.css only hides the footer BUTTON — the key binding
