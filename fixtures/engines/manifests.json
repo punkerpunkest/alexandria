@@ -1,0 +1,243 @@
+{
+  "_note": "Hostile engine manifests, hand-written and blessed. Every rule in validateEngine() must be reached by at least one case; the completeness check in check-fixture.mjs counts the rules and fails if one has no case. `patch` is merged over a minimal valid manifest, and null deletes a key.",
+  "rules": 12,
+  "base": {
+    "id": "sample",
+    "name": "Sample",
+    "version": "0.1.0",
+    "author": "nobody",
+    "review": "unreviewed",
+    "entry": "index.html",
+    "subject": "chemistry",
+    "scored": true,
+    "taskSpace": {
+      "do-a-thing": {
+        "job": "Ask for a thing.",
+        "parameters": {
+          "what": {
+            "kind": "text",
+            "maxLength": 20,
+            "job": "Which thing."
+          }
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "missing-id",
+      "patch": {
+        "id": null
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "id is missing"
+        }
+      ]
+    },
+    {
+      "id": "id-with-capitals",
+      "patch": {
+        "id": "Molecule_Builder"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "id \"Molecule_Builder\" must be lowercase letters, digits and hyphens"
+        }
+      ]
+    },
+    {
+      "id": "unknown-review-tier",
+      "patch": {
+        "review": "trusted"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "review \"trusted\" is not one of unreviewed, community, verified"
+        }
+      ]
+    },
+    {
+      "id": "scored-as-a-string",
+      "patch": {
+        "scored": "yes"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "scored must be true or false, not string"
+        }
+      ]
+    },
+    {
+      "id": "entry-escapes-the-package",
+      "patch": {
+        "entry": "../../server.js"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "entry \"../../server.js\" must be a relative path inside the package"
+        }
+      ]
+    },
+    {
+      "id": "entry-is-absolute",
+      "patch": {
+        "entry": "/etc/passwd"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "entry \"/etc/passwd\" must be a relative path inside the package"
+        }
+      ]
+    },
+    {
+      "id": "entry-is-a-url",
+      "patch": {
+        "entry": "https://evil.example/engine.html"
+      },
+      "failures": [
+        {
+          "scope": "manifest",
+          "reason": "entry \"https://evil.example/engine.html\" must be a relative path inside the package"
+        }
+      ]
+    },
+    {
+      "id": "task-space-empty",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": null
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace",
+          "reason": "declares no task kinds, so no task can ever be posed"
+        }
+      ]
+    },
+    {
+      "id": "kind-without-a-job",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "job": null
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing",
+          "reason": "has no job line, so the model cannot be told what it is for"
+        }
+      ]
+    },
+    {
+      "id": "kind-without-parameters",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "parameters": {
+              "what": null
+            }
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing",
+          "reason": "declares no parameters, so it is a fixed lesson rather than a task space"
+        }
+      ]
+    },
+    {
+      "id": "text-parameter-uncapped",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "parameters": {
+              "what": {
+                "maxLength": null
+              }
+            }
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing.what",
+          "reason": "text parameter has no maxLength"
+        }
+      ]
+    },
+    {
+      "id": "enum-parameter-with-no-values",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "parameters": {
+              "what": {
+                "kind": "enum",
+                "values": [],
+                "maxLength": null
+              }
+            }
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing.what",
+          "reason": "enum parameter declares no values"
+        }
+      ]
+    },
+    {
+      "id": "parameter-of-unknown-kind",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "parameters": {
+              "what": {
+                "kind": "slider",
+                "maxLength": null
+              }
+            }
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing.what",
+          "reason": "unknown parameter kind \"slider\""
+        }
+      ]
+    },
+    {
+      "id": "parameter-without-a-job",
+      "patch": {
+        "taskSpace": {
+          "do-a-thing": {
+            "parameters": {
+              "what": {
+                "job": null
+              }
+            }
+          }
+        }
+      },
+      "failures": [
+        {
+          "scope": "taskSpace.do-a-thing.what",
+          "reason": "has no job line"
+        }
+      ]
+    }
+  ]
+}

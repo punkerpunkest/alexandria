@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Compound Microscope</title>
+<link rel="stylesheet" href="style.css">
+
+<!-- THE ENGINE NEVER STATES THE TASK. Alexandria generated the parameters and the chrome
+     says the sentence in the arena bar above this frame; an engine that restated it would
+     be a tenant renegotiating an invariant. Everything below is the INSTRUMENT and only
+     the instrument — readouts an instrument would carry, two views, and the controls.
+
+     The one piece of task-derived text that reaches the screen is the slide's paper
+     label, drawn on the glass in the side view. That is a property of the object sitting
+     on the stage rather than an instruction, its job line forbids instructions, and it is
+     written with a text node so markup in it can never become markup here. -->
+
+<div id="strip" aria-live="polite"></div>
+
+<main>
+  <!-- Two views, because the procedure needs both. The eyepiece alone cannot teach the
+       approach: when the specimen is far out of focus the field is honestly featureless,
+       and the only real cue left is the gap between the objective and the slide seen from
+       the side. That is the technique labs actually teach — get close while WATCHING FROM
+       THE SIDE, then focus away while looking down the tube — so the side elevation is
+       not decoration, it is the other half of the instrument. -->
+  <div class="pane" id="viewPane">
+    <svg id="view" viewBox="0 0 360 400" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="the view down the eyepiece"></svg>
+  </div>
+  <div class="pane" id="scopePane">
+    <svg id="scope" viewBox="0 0 300 450" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="the microscope seen from the side"></svg>
+  </div>
+</main>
+
+<p id="say"></p>
+
+<footer id="knobs">
+  <div class="grp" role="group" aria-label="objective turret">
+    <span class="cap">turret</span>
+    <div class="row" id="turret">
+      <button class="obj" data-obj="4" aria-pressed="true">4&times;</button>
+      <button class="obj" data-obj="10" aria-pressed="false">10&times;</button>
+      <button class="obj" data-obj="40" aria-pressed="false">40&times;</button>
+    </div>
+  </div>
+
+  <!-- The coarse knob is NOT disabled when the 40x objective is in place, and that is a
+       deliberate choice rather than an oversight: a disabled control cannot be reached
+       for, so the mistake would become uncountable and the whole point of the engine is
+       that this particular mistake is counted. It is marked locked, it refuses to turn,
+       and every attempt is recorded. -->
+  <label class="grp" id="coarseGrp">
+    <span class="cap">coarse focus <b id="coarseLock" hidden>locked</b></span>
+    <input id="coarse" type="range" min="0" max="8000" step="100" value="1000">
+  </label>
+
+  <label class="grp">
+    <span class="cap">fine focus</span>
+    <input id="fine" type="range" min="-120" max="120" step="0.5" value="0">
+  </label>
+
+  <label class="grp">
+    <span class="cap">lamp</span>
+    <input id="lamp" type="range" min="0" max="100" step="1" value="45">
+  </label>
+
+  <label class="grp">
+    <span class="cap">diaphragm</span>
+    <input id="dia" type="range" min="0" max="100" step="1" value="45">
+  </label>
+
+  <button class="act" id="confirm">Confirm this view</button>
+</footer>
+
+<script src="scope.js"></script>

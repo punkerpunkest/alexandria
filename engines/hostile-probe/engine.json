@@ -1,0 +1,22 @@
+{
+  "id": "hostile-probe",
+  "name": "Hostile Probe",
+  "version": "0.1.0",
+  "author": "Alexandria samples",
+  "review": "unreviewed",
+  "entry": "index.html",
+  "subject": "_test",
+  "levels": [],
+  "scored": true,
+
+  "_purpose": "NOT A TEACHING ENGINE. It is the arena's boundary test: it attempts every escape the design claims is impossible and reports which ones were stopped. The arena is the trust boundary, so it is the one component that must be verified adversarially rather than asserted — see `Alexandria - Build Plan` 23 Aug, 'the arena hand-reviewed because it is the trust boundary'. Keep it out of any registry.",
+
+  "taskSpace": {
+    "probe": {
+      "job": "Run every escape attempt and report which were blocked. Never posed to a student.",
+      "parameters": {
+        "note": { "kind": "text", "maxLength": 120, "job": "Free text, ignored by the probe." }
+      }
+    }
+  }
+}

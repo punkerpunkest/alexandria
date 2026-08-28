@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Molecule Builder</title>
+<link rel="stylesheet" href="style.css">
+
+<!-- The engine never states the task. Alexandria generated the parameters and the chrome
+     says the sentence in the arena bar above; an engine that restated it would be a tenant
+     renegotiating an invariant. This surface shows only what the student has built. -->
+<div id="palette">
+  <button class="atom-btn" data-sym="H" aria-pressed="true">H</button>
+  <button class="atom-btn" data-sym="C" aria-pressed="false">C</button>
+  <button class="atom-btn" data-sym="N" aria-pressed="false">N</button>
+  <button class="atom-btn" data-sym="O" aria-pressed="false">O</button>
+  <span class="hint">Click the canvas to place an atom. Click two atoms to bond them.</span>
+</div>
+
+<svg id="board"></svg>
+
+<footer>
+  <button class="act" id="check">Check</button>
+  <button class="act ghost" id="clear">Clear</button>
+  <span id="say"></span>
+</footer>
+
+<script src="builder.js"></script>
