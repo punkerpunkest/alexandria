@@ -1,34 +1,465 @@
-* { box-sizing: border-box; }
-body { margin: 0; background: #eef0fb; font: 15px/1.5 -apple-system, system-ui, sans-serif; color: #26268c; }
-main { max-width: 1460px; margin: 0 auto; height: 100vh; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; padding: 12px 18px; }
-header { display: flex; justify-content: space-between; align-items: baseline; }
-.brand { font-weight: 700; letter-spacing: .2px; }
-.brand em { font-style: normal; opacity: .55; }
-.progress { font-variant-numeric: tabular-nums; opacity: .6; }
-#stage { background: #fff; border: 1px solid #d7d9ee; border-radius: 20px; overflow: hidden; position: relative; }
-#ask { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px; text-align: center; }
-#ask h1 { margin: 0; font-size: 24px; }
-#askform { display: flex; gap: 10px; width: min(560px, 100%); }
-#q { flex: 1; padding: 13px 16px; border: 3px solid #6b6bd6; border-radius: 14px; font-size: 15px; font-family: inherit; }
-button { padding: 12px 20px; border: 3px solid #6b6bd6; border-radius: 14px; background: #d9d6f3; color: #26268c; font: inherit; font-weight: 700; cursor: pointer; }
-button:disabled { opacity: .35; cursor: not-allowed; }
-.hint { margin: 0; opacity: .55; }
-footer { display: flex; align-items: center; gap: 10px; }
-.metrics { margin-left: auto; font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .75; white-space: pre; text-align: right; }
-.thinking { height: 100%; display: grid; place-items: center; opacity: .5; }
+/* THE CHROME'S STYLESHEET. Tokyo Night Storm on a character grid, per the vault note
+   `Alexandria - Design` and the Figma file "Alexandria — Chrome".
 
-/* When a world declares its own controls or readouts, the chrome stands down.
-   A world that declares neither keeps the chrome's default placement — see
-   `Alexandria - World Spec`, the controls callout. */
+   THESE TOKENS ARE CHROME ONLY. A world ships its own palette and must never read from
+   this sheet, or every world inherits Tokyo Night and the point of worlds collapses.
+   The boundary is enforced structurally — a world lives in a shadow root and this sheet
+   does not cross it — so the rule below is a statement of intent, not the mechanism.
+   First-party surfaces (the built-in micro cards, the arena bar) DO read these, because
+   the rule is about worlds, not about Alexandria's own surfaces. */
+
+@font-face {
+  font-family: 'Hack Nerd Font Mono';
+  src: url('/fonts/hack-regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: block;
+}
+@font-face {
+  font-family: 'Hack Nerd Font Mono';
+  src: url('/fonts/hack-bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: block;
+}
+
+:root {
+  /* Palette. Semantic on the left because that is what gets used; nothing below this
+     block references a raw hex. */
+  --bg: #24283b;
+  --bg-dark: #1f2335;
+  --bg-darker: #1a1b26;
+  --bg-highlight: #292e42;
+  --bg-selection: #2e3c64;
+  --border: #3b4261;
+  --text: #c0caf5;
+  --text-dim: #a9b1d6;
+  --text-muted: #565f89;
+  --accent: #7aa2f7;
+  --accent-alt: #bb9af7;
+  --cyan: #7dcfff;
+  --ok: #9ece6a;
+  --warn: #e0af68;
+  --danger: #f7768e;
+  --orange: #ff9e64;
+
+  /* The grid. Monospace everywhere is a constraint, not a tic: 1ch is exactly 9px at
+     the body size, so spacing derives from the character cell instead of being invented
+     per component. Every value below is a multiple of it. */
+  --ch: 9px;
+  --line: 24px;
+  --space-1: 9px;
+  --space-2: 18px;
+  --space-3: 27px;
+  --space-4: 36px;
+  --space-6: 54px;
+  --space-8: 72px;
+  --space-12: 108px;
+  --pad-window: 8px;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+  --hairline: 1px;
+
+  /* Type. Hack ships Regular and Bold only, so the Figma ramp's four weights flatten
+     to two: Medium reads as 400, Bold and ExtraBold as 700. Recorded because it is a
+     substitution rather than the design. */
+  --font: 'Hack Nerd Font Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --size-hero: 40px;   --line-hero: 52px;
+  --size-display: 24px; --line-display: 32px;
+  --size-heading: 19px; --line-heading: 28px;
+  --size-body: 15px;    --line-body: 24px;
+  --size-label: 13px;   --line-label: 20px;
+  --size-meta: 12px;    --line-meta: 18px;
+
+  --strip-h: 40px;
+  /* macOS traffic lights sit inset over the strip, so the symbol starts clear of them.
+     Frameless would reclaim this, at the cost of drawing minimise and close into a
+     strip the design note already records as full. */
+  --strip-inset: 92px;
+}
+
+/* Fullscreen: macOS hides the traffic lights, so the reserved 92px is dead space and
+   the symbol returns to the window padding. Set by chrome.js from a main-process
+   signal — the page cannot see the native window's state on its own. */
+body.fullscreen { --strip-inset: var(--pad-window); }
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg-darker);
+  color: var(--text);
+  font: 400 var(--size-body) / var(--line-body) var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── The window ─────────────────────────────────────────────────────────────────── */
+
+#chrome {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--strip-h) 1fr;
+}
+
+/* ── The top strip ──────────────────────────────────────────────────────────────── */
+
+#strip {
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--pad-window) var(--pad-window) var(--pad-window) var(--strip-inset);
+  background: var(--bg-dark);
+  border-bottom: var(--hairline) solid var(--border);
+  /* The inset changes when the window goes fullscreen and the lights disappear. macOS
+     animates that transition, so the symbol slides rather than jumping into place.
+     Reduced motion is handled globally at the foot of this file. */
+  transition: padding-left 180ms ease;
+  /* The strip is the window's drag handle under an inset titlebar; the symbol and the
+     readouts opt back out below so a click on them is a click, not a drag. */
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+/* THE SYMBOL. 114×28 at a 3px radius — a small chip, never the full height of the
+   strip. It is called the symbol even though it is currently only text, so the word
+   survives if a mark is ever drawn into it. It is the whole of the chrome's
+   navigation: one control, two destinations. */
+#symbol {
+  -webkit-app-region: no-drag;
+  height: 28px;
+  padding: 2px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--bg-darker);
+  font: 700 var(--size-body) / var(--line-body) var(--font);
+  cursor: pointer;
+}
+#symbol:hover { filter: brightness(1.08); }
+#symbol:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* The reserved tab row. Empty for the PoC, and holding its space on purpose. */
+#tabs { flex: 1 1 auto; }
+
+.readout {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+  white-space: nowrap;
+}
+.readout[hidden] { display: none; }
+
+.dot {
+  width: 7px; height: 7px;
+  border-radius: var(--radius-full);
+  background: currentColor;
+  flex: none;
+}
+.dot.ok      { background: var(--ok); }
+.dot.warn    { background: var(--warn); }
+.dot.danger  { background: var(--danger); }
+.dot.orange  { background: var(--orange); }
+
+/* ── The main surface ───────────────────────────────────────────────────────────── */
+
+/* White because the world owns everything inside it. The rule the design note settled:
+   white means a world is speaking, dark means the chrome is. */
+#stage {
+  grid-row: 2;
+  grid-column: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  background: #ffffff;
+}
+
+/* The chrome taking the surface back. Sits inside the stage so the projector's
+   replaceChildren removes it on mount and a failed load leaves it standing. */
+#nullstate {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+#nullstate .block { width: 560px; max-width: 100%; }
+#nullstate h1 {
+  margin: 0;
+  font: 700 var(--size-heading) / var(--line-heading) var(--font);
+  color: var(--text);
+}
+#nullstate .lead {
+  margin: var(--space-1) 0 0;
+  color: var(--text-dim);
+}
+
+/* A named reason, never a bare failure. `--danger` here and only here: the degrade and
+   the owed return both use `--warn`, because neither is an error. */
+.named-reason {
+  /* flex + fit-content, not inline-flex: the chip must size to its text AND take its
+     own line, or the button beside it flows up onto the same row. */
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 12px;
+  margin: var(--space-3) 0 0;
+  padding: 10px 16px 10px 14px;
+  background: var(--bg-dark);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+}
+#nullstate .primary { margin-top: var(--space-3); }
+
+/* ── Settings ───────────────────────────────────────────────────────────────────── */
+
+/* Full bleed below the strip. No gradient, no quota — settings is the chrome speaking
+   about itself, so it takes the whole surface and drops the session's furniture. It
+   shares the grid cell with the stage rather than replacing it, so the projector's
+   ResizeObserver never sees the stage box collapse to zero. */
+#settings {
+  grid-row: 2;
+  grid-column: 1;
+  display: none;
+  overflow-y: auto;
+  background: var(--bg);
+  /* Positioned, and after #stage in tree order, so it paints above it. #stage is
+     itself positioned — it has to be, to hold the null state — and a positioned box
+     paints above an unpositioned sibling regardless of source order. Without this the
+     panel renders correctly and is simply covered, which looks like a layout bug and
+     is not one. */
+  position: relative;
+  z-index: 1;
+}
+body.settings-open #settings { display: block; }
+
+/* Settings drops the session's furniture — no quota, no progress, no owed count. They
+   report on a session, and settings is the chrome talking about itself, so the strip
+   carries the symbol alone. Jordan's call, 26 Aug. */
+body.settings-open #strip .readout { display: none; }
+
+/* Top-anchored, horizontally centred. "In the middle" is the column, not the vertical
+   centre — content grows downward from a fixed top. */
+/* The window pads by 72, and the 864 column centres INSIDE that padding — not a
+   864-wide box centred in the window, which lands the text 68px too far right because
+   border-box eats the padding out of the column instead of adding to it. */
+#settings .content { padding: var(--space-6) var(--space-8); }
+#settings .page-header,
+#settings .sections {
+  width: 864px;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+#settings .page-header h1 {
+  margin: 0;
+  font: 700 var(--size-display) / var(--line-display) var(--font);
+  color: var(--text);
+}
+#settings .page-header .sub {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+}
+
+#settings .sections { margin-top: var(--space-4); }
+#settings .group + .group { margin-top: var(--space-4); }
+
+#settings .group > h2 {
+  margin: 0 0 12px;
+  font: 400 var(--size-label) / var(--line-label) var(--font);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.row {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.row + .row { border-top: var(--hairline) solid var(--border); }
+
+.row .label { display: flex; flex-direction: column; gap: 2px; }
+.row .label .name { color: var(--text); }
+.row .label .hint {
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+}
+
+.row .control { flex: none; }
+
+/* ── Controls ───────────────────────────────────────────────────────────────────── */
+
+.select { position: relative; width: 240px; }
+.select select {
+  width: 100%;
+  height: 32px;
+  padding: 0 32px 0 14px;
+  appearance: none;
+  background: var(--bg-highlight);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font: 400 var(--size-body) / var(--line-body) var(--font);
+  cursor: pointer;
+}
+.select select:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+/* The chevron: 10×6, drawn rather than imported, because one triangle does not justify
+   an icon system. */
+.select::after {
+  content: '';
+  position: absolute;
+  right: 12px; top: 50%;
+  width: 0; height: 0;
+  margin-top: -3px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--text-muted);
+  pointer-events: none;
+}
+
+.segmented {
+  display: flex;
+  height: 32px;
+  background: var(--bg-dark);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.segmented button {
+  padding: 0 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: 400 var(--size-body) / var(--line-body) var(--font);
+  cursor: pointer;
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--bg-selection);
+  color: var(--text);
+  font-weight: 700;
+}
+.segmented button:focus-visible { outline: 2px solid var(--cyan); outline-offset: -2px; }
+
+.control.slider { display: flex; align-items: center; gap: 16px; width: 240px; }
+.control.slider input[type='range'] {
+  flex: 1 1 auto;
+  width: 180px;
+  height: 14px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.control.slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  /* --fill is written by chrome.js so the filled portion tracks the value without a
+     second element to keep in sync. */
+  background: linear-gradient(to right,
+    var(--accent) 0 var(--fill, 33%), var(--border) var(--fill, 33%) 100%);
+}
+.control.slider input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px; height: 14px;
+  margin-top: -5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+.control.slider .value {
+  color: var(--text-dim);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The empty world section. Dashed because nothing is broken — there is simply a slot
+   with nothing in it, which is a different message from a failure. */
+.empty {
+  padding: 24px;
+  background: var(--bg-dark);
+  border: var(--hairline) dashed var(--border);
+  border-radius: var(--radius-md);
+}
+.empty .strong { margin: 0; color: var(--text-dim); font-weight: 700; }
+.empty .hint {
+  margin: 0;
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+}
+.empty .primary { margin-top: var(--space-2); }
+
+.primary {
+  height: 32px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--bg-darker);
+  font: 700 var(--size-body) / var(--line-body) var(--font);
+  cursor: pointer;
+}
+.primary:hover { filter: brightness(1.08); }
+.primary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+/* ── The projector's fallback furniture ─────────────────────────────────────────── */
+
+/* A world that declares its own controls or readouts takes them over and the chrome
+   stands down. Both PoC worlds do, so in practice these are only ever seen by the
+   plain world. */
+/* Bottom-LEFT, not right: every world archetype puts its advance control bottom-right,
+   so the dev readout sat on top of Cartoon's Continue button. */
+footer {
+  position: fixed;
+  left: var(--space-6); bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+footer button {
+  pointer-events: auto;
+  height: 32px;
+  padding: 0 16px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-highlight);
+  color: var(--text);
+  font: 400 var(--size-body) / var(--line-body) var(--font);
+  cursor: pointer;
+}
+footer button:disabled { opacity: .35; cursor: not-allowed; }
+
 body.world-controls footer #back,
 body.world-controls footer #next { display: none; }
-body.world-progress header .progress { display: none; }
+body.world-progress #progress { display: none; }
 
-/* The metrics readout is dev instrumentation. It was taking three lines out of the
-   grid, which is vertical space the world needs — the stage was 583px tall against a
-   design drawn at 772. Float it instead. */
-body.world-controls main { grid-template-rows: auto 1fr; }
-body.world-controls footer {
-  position: fixed; right: 20px; bottom: 6px;
-  margin: 0; pointer-events: none; opacity: .55;
+/* The null state still being in the stage means no world ever mounted, so the
+   projector's fallback controls have nothing to drive. The chrome owns this surface;
+   the world's furniture does not belong on it. */
+body:has(#nullstate) footer button { display: none; }
+
+/* Dev instrumentation, not chrome. Floated so it never takes a row out of the grid —
+   vertical space belongs to the world. */
+.metrics {
+  color: var(--text-muted);
+  font: 400 var(--size-meta) / var(--line-meta) var(--font);
+  white-space: pre;
+  text-align: right;
+  opacity: .75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

@@ -9,4 +9,8 @@ contextBridge.exposeInMainWorld('alexandria', {
   worldsDir: () => ipcRenderer.invoke('alexandria:worlds-dir'),
   minimize: () => ipcRenderer.invoke('alexandria:minimize'),
   close: () => ipcRenderer.invoke('alexandria:close'),
+
+  // A subscription rather than a call: the window changes state on its own, so the
+  // chrome is told rather than asking. Fires on enter, on leave, and once per load.
+  onFullscreen: (cb) => ipcRenderer.on('alexandria:fullscreen', (_e, on) => cb(on)),
 });
