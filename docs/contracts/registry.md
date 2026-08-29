@@ -401,41 +401,58 @@ Invariant 9 has a consequence the site inherits: **the index cannot be the only 
 rejection is explained.** An author whose package is refused at install time is not looking
 at the registry's logs.
 
-## What is blocked: worlds have no install target
+## What is blocked — RE-MEASURED 29 Aug, and it is not what this section first said
 
-The world half of this contract can be **specified** and cannot be **consumed**. Stated
-plainly rather than papered over, because a website agent building a world storefront
-against it will otherwise assume there is something on the other end.
+> [!danger] The original verdict is stale and a website agent must not build against it
+> This section used to read "worlds have no install target", list five things an install
+> needs against five things that did not exist, and tell a website agent to build
+> browse-and-download because the engine half was ready in a way the world half was not.
+> **Four of those five rows are no longer true.** The `multi-world` and `sandbox-mount`
+> lanes landed on 28–29 Aug and closed them. Re-measured against the repository rather
+> than re-argued:
 
-Measured against the repository as it stands:
+| What an install needs | 28 Aug | Now |
+|---|---|---|
+| A packages directory | None; `worlds/` sat at the root, unversioned | `worlds/` **is** the packages directory. `server.js` discovers every directory under it holding a `world.json` rather than being told a name |
+| Enumerate and validate what is in it | Engines only | Both. `GET /api/worlds` returns id, name, version, archetype, `ok`, bytes and `problems` per package — an index shape already |
+| More than one world resolvable at a time | `WORLD_ID` read once at module scope | `DEFAULT_WORLD` is a *default*. Selection travels per request and `?world=` opens any installed package |
+| A projector that can unmount one and mount another | Nothing at all | `openWorld()` and `switchWorld()`, verified across all three worlds |
+| A world manifest validator | **None** | `src/manifest.js`, 36 rules, run at boot. A broken package is kept and reported rather than crashing the server |
 
-| What an install needs | What exists |
-|---|---|
-| A packages directory | None. `worlds/` and `engines/` sit at the repo root, unversioned |
-| Enumerate and validate what is in it | Only for **engines**: `server.js` reads every directory under `engines/`, runs `validateEngine`, and throws at boot on a bad one. Worlds get no equivalent |
-| More than one world resolvable at a time | `const WORLD_ID = process.env.WORLD ?? 'cartoon'` — read **once**, at module scope, before the server listens. `worldDir` and the parsed manifest are module-level constants |
-| A projector that can unmount one world and mount another | Nothing. `grep -rn "unmount\|remount\|switchWorld\|mountWorld" public/ src/` returns nothing at all |
-| A manifest validator to run at install | **None for worlds.** `docs/contracts/world-loader.md` §6 documents this in full: `server.js` does a bare `JSON.parse` and the only manifest rule enforced anywhere is one line about one channel's `kind`. Its table lists sixteen ways a world manifest breaks, and the "never" rows are worlds that install clean and misbehave in front of a student |
+What is actually blocked is three different things, and the asymmetry the old callout warned
+about has closed rather than deepened — the world half now carries **more** machinery than
+the engine half.
 
-`Alexandria - Packaging` puts this work first of its three stages, calls it the bulk of them,
-and says it is what "actually closes the one-world-chosen-by-an-env-var shortcut". It is
-unbuilt. So:
+1. **Nothing installs anything.** There is no code anywhere that fetches a package from a URL
+   and writes it to disk, for worlds *or* engines. `grep` for a registry fetch in `server.js`,
+   `src/assets.js` and `src/engine.js` returns nothing. Both halves load from a local folder a
+   human put things in.
+2. **Install paths are not versioned.** `packageBase()` returns `/worlds/${id}` and
+   `enginePackageBase()` returns `/engines/${id}`. The versioned immutable directories this
+   contract specifies further up are unimplemented on both sides, so there is no second
+   version of anything to install beside a first.
+3. ~~**Engines have no index endpoint.**~~ Closed 29 Aug — it was the smallest of the three.
+   `GET /api/engines` returns id, name, subject, version, author, `review`, `scored`,
+   `levels`, task `kinds` and `offerable` per package, matching the shape of `/api/worlds`.
+   It does NOT apply `offerable()`: this is a catalogue of what is installed, the test
+   fixtures are installed, and an endpoint that disagrees with the folder is a worse lie
+   than one that shows a package whose subject starts with `_`. The flag is exposed instead,
+   so a gallery can hide them and the filter stays where it belongs — on what may be offered
+   to a student.
 
-> [!danger] Do not build a world storefront that implies an install button works
-> The install half of the world path has no destination, and — worse — no validator, so a
-> package accepted from a stranger today would be trusted wholesale. The engine half is
-> genuinely ready for a registry in a way the world half is not, and the asymmetry is not
-> visible from the outside: both are "community packages" on the same site.
->
-> The honest surface until `Alexandria - Packaging` stage 1 lands is a **browse-and-download**
-> world gallery — the folder a student drags into their worlds directory by hand, which is
-> the drop `Alexandria - Storage` calls the feature rather than an implementation detail.
+> [!warning] The honest surface is STILL browse-and-download, for a different reason
+> Not because a world has nowhere to land — it has a directory and a validator that will
+> reject a bad package on the next boot. Because **nothing fetches**. A student clicks
+> download, gets a folder, and drops it into their worlds directory by hand, which
+> `Alexandria - Storage` calls the feature rather than an implementation detail. The install
+> button is still the control not to draw; the sentence to put in the commit is now "there is
+> no installer" rather than "there is nowhere to install to".
 
 One thing on the world side is **not** blocked and is worth recording because
 `Alexandria - Storage` flagged it as a pre-fan-out deadline: the asset resolver contract
 landed. `src/assets.js` owns `packageBase()` and `resolveAsset()`, the projector never joins
 a string, and the header comment names the version segment and the custom protocol as the
-two things that change there. The world half lacks a loader, not a seam.
+two things that change there. The world half lacks a fetcher, not a seam.
 
 ## The scaling ceiling
 

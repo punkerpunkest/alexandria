@@ -282,6 +282,38 @@ createServer(async (req, res) => {
         })),
       });
     }
+    // WHAT A GALLERY READS. `docs/contracts/registry.md` lists this as one of the three
+    // things still blocking the website, and the smallest: worlds already had `/api/worlds`
+    // and engines were validated at boot and never exposed, so a page listing engines had
+    // nothing to read.
+    //
+    // `offerable` is NOT applied. This is a catalogue of what is installed, and the test
+    // fixtures are installed — hiding them here would make the endpoint disagree with the
+    // folder, which is a worse lie than showing a package whose subject starts with `_`.
+    // The filter belongs where it already is, on what may be offered to a STUDENT.
+    if (url.pathname === '/api/engines') {
+      return send(res, 200, {
+        engines: engines.map((e) => ({
+          id: e.id,
+          name: e.name,
+          subject: e.subject,
+          version: e.version ?? null,
+          author: e.author ?? null,
+          // Author-declared today, which `registry.md` records as open: nothing verifies it
+          // and the tier rule that would consume it is not written. Passed through rather
+          // than dressed up.
+          review: e.review ?? null,
+          scored: e.scored ?? null,
+          levels: e.levels ?? [],
+          kinds: Object.keys(e.taskSpace ?? {}),
+          // Every engine here validated at boot — the loader throws rather than serving a
+          // broken one — so `ok` is constant true by construction. It is present so the
+          // shape matches `/api/worlds`, where a broken package IS kept and reported.
+          ok: true,
+          offerable: !String(e.subject ?? '').startsWith('_'),
+        })),
+      });
+    }
     if (url.pathname === '/api/world') {
       const pkg = pick(url.searchParams.get('id'));
       const screens = {};
