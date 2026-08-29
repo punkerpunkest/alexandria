@@ -1,102 +1,105 @@
-# Alexandria — wire spike
+# Alexandria
 
-The thinnest end-to-end path: a typed question becomes a staged module,
-rendered by a world package, with Claude Code as a long-lived child process
-spending the student's own subscription.
+An open source learning space for students, built on top of the model you already pay for.
 
-Names here follow the vault note `Alexandria - Glossary`. In this repo:
-`src/claude.js` is the **adapter**, `server.js` is the **runtime**,
-`public/app.js` is the **projector**, and `worlds/cartoon` is a **world**.
-There is no **arena** and no **bank** yet, because there are no interactives.
+Most students learn with LLMs now, but that experience has not really improved since the
+first chatbot. Every gain has come from the model layer, and that has made answers more
+correct without making them better to learn from. I think there are two problems with
+learning this way. The interface was built for having a conversation rather than for
+learning anything, and the dead time after every prompt makes it very easy to lose focus
+and wander off. Alexandria is what I built to fix both of those.
 
+It is a harness rather than a model. It wraps whatever you are already logged into and it
+brings no inference of its own, so there is nothing to pay for on top of what you already
+have.
+
+## Worlds
+
+The first thing Alexandria does is change the form an explanation arrives in. Worlds, as I
+call them, take an ordinary reply and restage it. The same answer can come back as a lesson
+from a Duolingo style tutor, or as a visual novel where one character confidently gets it
+wrong in the way most people do before the other one corrects her, or as a long scrolling
+article that plots its own diagrams as it goes.
+
+Worlds ship no code at all, only templates and assets, so it is easy for a community to
+build them around their own taste and safe for a student to install one. That works because
+a world is a form and not a program. The model writes the words and picks from options the
+world already ships, which means it cannot invent a layout or name a picture that does not
+exist.
+
+Three worlds ship in this repo: `cartoon`, `longform` and `visual-novel`.
+
+## No dead time
+
+The second thing is that the waiting is covered, and the trick is ordering. You say what you
+want next before the interactive rather than after it, so the next lesson is already being
+written underneath you while you work through the current one. The only real wait left is
+the first answer of a session.
+
+I went into this with the constraint that it should never be worse than just using the chat
+normally. The wait was already there, so none of this costs extra time, only tokens, and
+skipping an interactive just means you wait exactly as long as you would have anyway.
+
+Those interactives can be quiz widgets like a multiple choice question or a flashcard, and
+those ship with the app so a boundary can never come up empty. They can also be
+community made simulations, like building a molecule up from atoms or learning to drive a
+microscope, and those run sandboxed.
+
+## Install
+
+You need [Claude Code](https://claude.com/claude-code) installed and logged in, and Node 20
+or newer. There is no API key, because Alexandria spends the subscription you already have.
+
+```bash
+git clone https://github.com/punkerpunkest/alexandria.git
+cd alexandria
+npm install
 ```
-npm start                                 # dev mode, in a browser
-npm i && npx electron electron/main.js    # the app
+
+Then run it one of two ways.
+
+```bash
+npm run app     # the desktop app
+npm start       # the same thing in a browser, on http://localhost:4173
 ```
 
-Requires Claude Code installed and logged in. No API key. Dev mode is
-dependency-free and serves http://localhost:4173; the app runs that same
-server in Electron's main process and loads it in a window it owns. The
-projector, the worlds and the chrome are byte-identical either way.
+Both run the identical server, projector, worlds and chrome. The app just owns its own
+window.
 
-## What it proves
+## Using it
 
-| Gate | Result |
-|---|---|
-| Auth | Spawns and authenticates off the existing login. `apiKeySource: none` |
-| Schema | Beat arrays come back valid, 0 repairs across every run so far |
-| Latency | ~13-17s to generate, ~105-115s to read. Covered roughly 7x |
-| Teaching | Jordan's call |
+Type what you want to learn and press go. You get a module staged by whichever world is
+active, you read it, and at the end you say what you want next. That ask is a required step
+rather than a prompt you can ignore, because it is what gives the interactive something real
+to cover.
 
-## The shape
+Switch worlds from the symbol in the top left, which opens settings. `WORLD=<id>` picks the
+default world at startup if you would rather set it there.
 
-```
-worlds/<id>/world.json      manifest: channels, caps, asset vocabulary, motion
-      -> src/manifest.js   the manifest's own schema. Every package under
-                           `worlds/` is enumerated and validated at startup, so
-                           a broken world fails at LOAD with a named reason
-                           rather than mid-session. `WORLD=<id>` picks the
-                           default; `?world=<id>` and `/api/worlds` pick and
-                           list the rest
-      -> src/schema.js     pure function: manifest -> JSON Schema (asset
-                           descriptions folded into the enum description,
-                           because the schema IS part of the prompt)
-      -> src/claude.js     one long-lived `claude -p --input-format stream-json`
-                           process, serialised turns, no tools, no MCP
-      -> src/validate.js   what the schema cannot enforce: length caps, a
-                           mascot line that asks instead of claims, declared
-                           beat-kind coverage, corrective faces outside
-                           misconceptions
-      -> src/paginate.js   beats -> screens, per the world's policy. Runtime
-                           owns this
-      -> public/app.js     shadow-DOM mount, slot fill, transition driver
+To install simulations from the registry, point the app at the index when you start it.
+
+```bash
+REGISTRY=https://alexandria-registry.vercel.app/index.json npm run app
 ```
 
-A world ships a manifest, HTML templates with `data-slot`, one stylesheet and
-assets. **No JavaScript.** Motion is a state diff: the driver compares the
-previous beat's slot values to the new ones and applies the class the world
-declared for that channel changing.
+## The registry
 
-## The one non-obvious setting
+Community worlds and simulations live at
+**[alexandria-registry.vercel.app](https://alexandria-registry.vercel.app)**.
 
-`MAX_THINKING_TOKENS=0` in `src/claude.js`.
+Worlds are browsed and chosen by the student, because nobody wants a system picking their
+aesthetic for them. Simulations are matched by the system the way an agent finds a skill.
+Neither ships with Alexandria.
 
-With thinking on, one module took **138s** (115s of it before the first token)
-and cost $0.10. With it off the same module takes **~15s** and costs $0.013.
-Filling channels is not a reasoning task, so the thinking budget is pure latency.
+## The honest weakness
 
-## The Electron pin
+Installing community simulations means running content nobody here wrote, which is one leg
+of the lethal trifecta and the part I am still working on. The other two legs are closed.
+The model runs with no tools and no MCP, so there is nothing private for it to reach, and
+the sandbox has no egress at all. That last one is measured rather than argued: there is an
+engine in `engines/hostile-probe` whose only job is to attempt each escape and report what
+happened.
 
-`electron` is pinned to `^39.8.10` and the caret is doing real work. Both
-walls are hard:
+## Licence
 
-- **Below:** macOS 26 will not run Electron 31. The install succeeds and
-  verifies against Electron's own SHA-256, then the first launch is SIGKILLed
-  and the OS **deletes the 226MB bundle**, which reads as a corrupt download
-  and baits you into reinstalling. `spctl -a -t exec` on the untouched bundle
-  says `notarization indicates this code has been revoked`. Ad-hoc signing
-  stops the deletion and does not make it run. The fix is the version.
-- **Above:** electron 40+ needs `node >= 22.12.0`, and its installer
-  `require()`s the ESM-only `@electron/get` v5. On Node 20 the install dies
-  with `ERR_REQUIRE_ESM` before downloading anything.
-
-39.8.10 is the newest release that still supports Node 20, and it runs with no
-signing work at all. Raising the machine to Node 22 removes the ceiling.
-
-`npm audit` reports 2 high severity here. It is `extract-zip`, the unzip
-Electron uses at install time to unpack its own binary — it never ships and
-never runs at runtime. **Do not run `npm audit fix --force`:** it resolves to
-electron 43, which cannot install on Node 20.
-
-## Cut, on purpose
-
-**The checkpoint beat was cut on 23 Aug 2026** and removed from the code the same
-week. The interactive is the only scored object, and nothing inside a module gates.
-`checkpoint` stays a **reserved** beat-kind name — see `_reserved` in
-`worlds/cartoon/world.json` — so it is not recycled and the vocabulary is unchanged
-when gating lands. Nothing generates, paginates, renders or gates it today.
-
-## Not built yet
-
-The loop. Right now it is one question, one module. Next: bank an interactive
-during the reading, take the ask at the boundary, generate underneath it.
+TBD.
