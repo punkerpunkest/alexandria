@@ -66,13 +66,15 @@ const files = {}, entries = [];
 for (const [id, t] of Object.entries(archives)) {
   const gz = gzipSync(t);
   files[`/${id}.tgz`] = gz;
+  // The shape `docs/contracts/registry.md` specifies: `archive` relative to the index's own
+  // URL, `hash` in Subresource Integrity form so the algorithm travels with the digest.
   entries.push({ id, version: '0.1.0', name: id, subject: 'biology', review: 'unreviewed',
-                 path: `${id}.tgz`, sha256: createHash('sha256').update(gz).digest('hex'), bytes: gz.length });
+                 archive: `${id}.tgz`, hash: 'sha256-' + createHash('sha256').update(gz).digest('base64'), bytes: gz.length });
 }
 // Same bytes as `good`, but the index lies about the digest.
-entries.push({ ...entries[0], id: 'tampered', sha256: '0'.repeat(64) });
+entries.push({ ...entries[0], id: 'tampered', hash: 'sha256-' + Buffer.alloc(32).toString('base64') });
 files['/tampered.tgz'] = files['/good.tgz'];
-const index = { version: 1, engines: entries };
+const index = { index: 1, generated: '2026-08-29T00:00:00Z', engines: entries };
 files['/index.json'] = Buffer.from(JSON.stringify(index));
 
 const server = createServer((req, res) => {

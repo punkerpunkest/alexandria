@@ -12,7 +12,7 @@ import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/e
 import { validateMicro, answeringTimeMs, shapeCardResult } from '../src/micro.js';
 import { buildInteractiveSchema, readInteractive, validateInteractive, offerable } from '../src/interactive.js';
 import { validateManifest, MANIFEST_RULES } from '../src/manifest.js';
-import { memberPath, checkEntry, checkIdentity, overCap, CAPS } from '../src/install.js';
+import { memberPath, checkEntry, checkIdentity, overCap, CAPS, checkIndex } from '../src/install.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -341,6 +341,9 @@ for (const c of inst.members) {
 }
 for (const c of inst.entries) {
   eq(`install/entry/${c.id}`, checkEntry(c.entry).map((f) => f.reason).join('\n'), c.failures.join('\n'));
+}
+for (const c of inst.index) {
+  eq(`install/index/${c.id}`, checkIndex(c.value).map((f) => f.reason).join('\n'), c.failures.join('\n'));
 }
 for (const c of inst.identity) {
   eq(`install/identity/${c.id}`,

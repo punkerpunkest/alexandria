@@ -302,6 +302,17 @@ Notes on the shape, each with its reason:
 - The two digests above are **illustrative placeholders**. Nothing has been packaged, so
   no real archive of either engine exists to have hashed.
 
+> [!done] This shape is IMPLEMENTED as of 29 Aug, and it is the contract between the two halves
+> `src/install.js` reads exactly the fields above: `index: 1` refuses the whole file if it is
+> any other number, `archive` is joined to the index's own URL, `hash` is parsed as
+> `<algorithm>-<base64>` and a bare hex digest is refused rather than guessed at. Point
+> Alexandria at one with `REGISTRY=<index url>`; `GET /api/registry` reads it and
+> `POST /api/install {id, version}` installs from it.
+>
+> The installer was first written against an invented shape — `sha256` as hex, `path` instead
+> of `archive` — and corrected to this one. The document is the shared spec; where they
+> disagreed, the improvisation was the thing that moved.
+
 ### Which fields are duplicated, and which are new
 
 The distinction matters because a duplicated field can **disagree** with the package it

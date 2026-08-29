@@ -1,32 +1,271 @@
 {
-  "_note": "Hostile cases for the PURE half of the installer, src/install.js. The impure half is exercised against a real gzipped tar over a real HTTP server in tools/check-install.mjs; these are the rules that decide, isolated from the I/O that carries them out.",
+  "_note": "Hostile cases for the PURE half of the installer, src/install.js. The impure half is exercised against a real gzipped tar over a real HTTP server in tools/check-install.mjs; these are the rules that decide, isolated from the I/O that carries them out. The entry shape is the one docs/contracts/registry.md specifies \u2014 `archive` relative to the index URL, `hash` in Subresource Integrity form \u2014 not a shape invented here.",
   "members": [
-    { "id": "plain", "name": "engine.json", "path": "engine.json" },
-    { "id": "nested", "name": "assets/slide.png", "path": "assets/slide.png" },
-    { "id": "dot-slash-is-normal-in-tar", "name": "./engine.json", "path": "engine.json" },
-    { "id": "trailing-slash-directory", "name": "assets/", "path": "assets" },
-    { "id": "walks-out", "name": "../../etc/passwd", "reason": "\"../../etc/passwd\" walks outside the package" },
-    { "id": "walks-out-and-back", "name": "a/../../b", "reason": "\"a/../../b\" walks outside the package", "why": "Refused even though it resolves inside. A member that walks up and back down is describing a path it has no reason to describe, and the cancelling form is the one that survives review." },
-    { "id": "absolute", "name": "/etc/passwd", "reason": "\"/etc/passwd\" is absolute" },
-    { "id": "url", "name": "https://evil.test/x", "reason": "\"https://evil.test/x\" looks like a URL, not a path" },
-    { "id": "windows-separator", "name": "assets\\slide.png", "reason": "\"assets\\slide.png\" contains a backslash", "why": "Means one thing on the machine it was packed on and another here." },
-    { "id": "empty", "name": "", "reason": "archive member has no name" },
-    { "id": "resolves-to-nothing", "name": "./././", "reason": "\"./././\" resolves to nothing" }
+    {
+      "id": "plain",
+      "name": "engine.json",
+      "path": "engine.json"
+    },
+    {
+      "id": "nested",
+      "name": "assets/slide.png",
+      "path": "assets/slide.png"
+    },
+    {
+      "id": "dot-slash-is-normal-in-tar",
+      "name": "./engine.json",
+      "path": "engine.json"
+    },
+    {
+      "id": "trailing-slash-directory",
+      "name": "assets/",
+      "path": "assets"
+    },
+    {
+      "id": "walks-out",
+      "name": "../../etc/passwd",
+      "reason": "\"../../etc/passwd\" walks outside the package"
+    },
+    {
+      "id": "walks-out-and-back",
+      "name": "a/../../b",
+      "reason": "\"a/../../b\" walks outside the package",
+      "why": "Refused even though it resolves inside. A member that walks up and back down is describing a path it has no reason to describe, and the cancelling form is the one that survives review."
+    },
+    {
+      "id": "absolute",
+      "name": "/etc/passwd",
+      "reason": "\"/etc/passwd\" is absolute"
+    },
+    {
+      "id": "url",
+      "name": "https://evil.test/x",
+      "reason": "\"https://evil.test/x\" looks like a URL, not a path"
+    },
+    {
+      "id": "windows-separator",
+      "name": "assets\\slide.png",
+      "reason": "\"assets\\slide.png\" contains a backslash",
+      "why": "Means one thing on the machine it was packed on and another here."
+    },
+    {
+      "id": "empty",
+      "name": "",
+      "reason": "archive member has no name"
+    },
+    {
+      "id": "resolves-to-nothing",
+      "name": "./././",
+      "reason": "\"./././\" resolves to nothing"
+    }
   ],
   "entries": [
-    { "id": "good", "entry": { "id": "microscope", "version": "0.1.0", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "path": "e/m.tgz", "subject": "biology" }, "failures": [] },
-    { "id": "absent-from-index", "entry": null, "failures": ["no such package in the index"] },
-    { "id": "bad-id", "entry": { "id": "../etc", "version": "0.1.0", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "path": "e/m.tgz" }, "failures": ["id \"../etc\" is not lowercase letters, digits and hyphens"] },
-    { "id": "bad-version-is-a-directory-name", "entry": { "id": "m", "version": "../../x", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "path": "e/m.tgz" }, "failures": ["version \"../../x\" is not major.minor.patch"], "why": "Both path segments come from these, so a version that is not a plain triple is a directory name chosen by a stranger." },
-    { "id": "no-digest", "entry": { "id": "m", "version": "0.1.0", "path": "e/m.tgz" }, "failures": ["sha256 is missing or not 64 hex characters"] },
-    { "id": "short-digest", "entry": { "id": "m", "version": "0.1.0", "sha256": "abc", "path": "e/m.tgz" }, "failures": ["sha256 is missing or not 64 hex characters"] },
-    { "id": "path-escapes", "entry": { "id": "m", "version": "0.1.0", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "path": "../../../etc/passwd" }, "failures": ["path \"../../../etc/passwd\" walks outside the package"] },
-    { "id": "test-fixture-must-not-be-published", "entry": { "id": "hostile-probe", "version": "0.1.0", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "path": "e/h.tgz", "subject": "_test" }, "failures": ["subject \"_test\" is a test fixture and must not be published"], "why": "The publisher applies the same one-line rule as isTestEngine, so a future boundary fixture cannot forget to opt out." }
+    {
+      "id": "good",
+      "entry": {
+        "id": "microscope",
+        "version": "0.1.0",
+        "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "archive": "packages/engines/microscope/0.1.0.tar.gz",
+        "subject": "biology"
+      },
+      "failures": []
+    },
+    {
+      "id": "absent-from-index",
+      "entry": null,
+      "failures": [
+        "no such package in the index"
+      ]
+    },
+    {
+      "id": "bad-id",
+      "entry": {
+        "id": "../etc",
+        "version": "0.1.0",
+        "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "archive": "a.tar.gz"
+      },
+      "failures": [
+        "id \"../etc\" is not lowercase letters, digits and hyphens"
+      ]
+    },
+    {
+      "id": "bad-version-is-a-directory-name",
+      "entry": {
+        "id": "m",
+        "version": "../../x",
+        "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "archive": "a.tar.gz"
+      },
+      "failures": [
+        "version \"../../x\" is not major.minor.patch"
+      ],
+      "why": "Both path segments come from these, so a version that is not a plain triple is a directory name chosen by a stranger."
+    },
+    {
+      "id": "no-hash",
+      "entry": {
+        "id": "m",
+        "version": "0.1.0",
+        "archive": "a.tar.gz"
+      },
+      "failures": [
+        "hash \"undefined\" is not in <algorithm>-<base64> form"
+      ]
+    },
+    {
+      "id": "bare-hex-is-not-sri",
+      "entry": {
+        "id": "m",
+        "version": "0.1.0",
+        "hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "archive": "a.tar.gz"
+      },
+      "failures": [
+        "hash \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" is not in <algorithm>-<base64> form"
+      ],
+      "why": "registry.md settles on <algorithm>-<base64> so the algorithm travels with the digest. A bare hex string is refused rather than guessed at."
+    },
+    {
+      "id": "unsupported-algorithm",
+      "entry": {
+        "id": "m",
+        "version": "0.1.0",
+        "hash": "md5-AAAAAAAAAAAAAAAAAAAAAA==",
+        "archive": "a.tar.gz"
+      },
+      "failures": [
+        "hash algorithm \"md5\" is not supported"
+      ]
+    },
+    {
+      "id": "archive-escapes",
+      "entry": {
+        "id": "m",
+        "version": "0.1.0",
+        "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "archive": "../../../etc/passwd"
+      },
+      "failures": [
+        "archive \"../../../etc/passwd\" walks outside the package"
+      ]
+    },
+    {
+      "id": "test-fixture-must-not-be-published",
+      "entry": {
+        "id": "hostile-probe",
+        "version": "0.1.0",
+        "hash": "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+        "archive": "h.tar.gz",
+        "subject": "_test"
+      },
+      "failures": [
+        "subject \"_test\" is a test fixture and must not be published"
+      ],
+      "why": "The publisher applies the same one-line rule as isTestEngine, so a future boundary fixture cannot forget to opt out."
+    }
   ],
   "identity": [
-    { "id": "agrees", "manifest": { "id": "m", "version": "0.1.0" }, "entry": { "id": "m", "version": "0.1.0" }, "idSegment": "m", "versionSegment": "0.1.0", "failures": [] },
-    { "id": "manifest-disagrees-with-index", "manifest": { "id": "other", "version": "0.1.0" }, "entry": { "id": "m", "version": "0.1.0" }, "idSegment": "m", "versionSegment": "0.1.0", "failures": ["manifest id \"other\" is not the index's \"m\"", "manifest id \"other\" is not the directory \"m\""] },
-    { "id": "version-disagrees", "manifest": { "id": "m", "version": "9.9.9" }, "entry": { "id": "m", "version": "0.1.0" }, "idSegment": "m", "versionSegment": "0.1.0", "failures": ["manifest version \"9.9.9\" is not the index's \"0.1.0\"", "manifest version \"9.9.9\" is not the directory \"0.1.0\""] },
-    { "id": "no-manifest-at-all", "manifest": null, "entry": { "id": "m", "version": "0.1.0" }, "idSegment": "m", "versionSegment": "0.1.0", "failures": ["engine.json is missing or unreadable"] }
+    {
+      "id": "agrees",
+      "manifest": {
+        "id": "m",
+        "version": "0.1.0"
+      },
+      "entry": {
+        "id": "m",
+        "version": "0.1.0"
+      },
+      "idSegment": "m",
+      "versionSegment": "0.1.0",
+      "failures": []
+    },
+    {
+      "id": "manifest-disagrees-with-index",
+      "manifest": {
+        "id": "other",
+        "version": "0.1.0"
+      },
+      "entry": {
+        "id": "m",
+        "version": "0.1.0"
+      },
+      "idSegment": "m",
+      "versionSegment": "0.1.0",
+      "failures": [
+        "manifest id \"other\" is not the index's \"m\"",
+        "manifest id \"other\" is not the directory \"m\""
+      ]
+    },
+    {
+      "id": "version-disagrees",
+      "manifest": {
+        "id": "m",
+        "version": "9.9.9"
+      },
+      "entry": {
+        "id": "m",
+        "version": "0.1.0"
+      },
+      "idSegment": "m",
+      "versionSegment": "0.1.0",
+      "failures": [
+        "manifest version \"9.9.9\" is not the index's \"0.1.0\"",
+        "manifest version \"9.9.9\" is not the directory \"0.1.0\""
+      ]
+    },
+    {
+      "id": "no-manifest-at-all",
+      "manifest": null,
+      "entry": {
+        "id": "m",
+        "version": "0.1.0"
+      },
+      "idSegment": "m",
+      "versionSegment": "0.1.0",
+      "failures": [
+        "engine.json is missing or unreadable"
+      ]
+    }
+  ],
+  "index": [
+    {
+      "id": "good",
+      "value": {
+        "index": 1,
+        "engines": []
+      },
+      "failures": []
+    },
+    {
+      "id": "unknown-format-refuses-the-whole-file",
+      "value": {
+        "index": 2,
+        "engines": []
+      },
+      "failures": [
+        "index format 2 is not 1, so this file cannot be read safely"
+      ],
+      "why": "An installer that best-efforts a format it does not know is how a client installs the wrong bytes confidently."
+    },
+    {
+      "id": "no-format-version",
+      "value": {
+        "engines": []
+      },
+      "failures": [
+        "index format undefined is not 1, so this file cannot be read safely"
+      ]
+    },
+    {
+      "id": "no-engines-array",
+      "value": {
+        "index": 1
+      },
+      "failures": [
+        "index has no engines array"
+      ]
+    }
   ]
 }

@@ -12,6 +12,9 @@ import { buildInteractiveSchema, buildInteractivePrompt, readInteractive,
 import { answeringTimeMs } from './src/micro.js';
 import { validateManifest, errorsOnly, reportText } from './src/manifest.js';
 import { declaredAssets } from './src/assets.js';
+// The impure half, deliberately not in `src/`: `CONTRACT.md` invariant 3 forbids network
+// there and `docs/contracts/registry.md` invariant 7 names this import as the reason.
+import { installEngine, fetchIndex } from './installer.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const WORLDS_ROOT = join(ROOT, 'worlds');
@@ -20,6 +23,12 @@ const WORLDS_ROOT = join(ROOT, 'worlds');
 // working — but it is now one parameter with a default rather than the single binding the
 // whole process was built around. Selection travels per request from here on.
 const DEFAULT_WORLD = process.env.WORLD ?? 'cartoon';
+
+// WHERE PACKAGES COME FROM. Unset means the app runs entirely on what shipped with it, which
+// is every invocation before today and stays the default — a registry is opt-in, not a
+// dependency. `REGISTRY=https://…/index.json` points it at one.
+const REGISTRY = process.env.REGISTRY ?? '';
+const PACKAGES_ROOT = join(ROOT, 'packages');
 // Hardcoding this made two worlds impossible to run side by side.
 const PORT = Number(process.env.PORT ?? 4173);
 
@@ -329,6 +338,39 @@ createServer(async (req, res) => {
     // fixtures are installed — hiding them here would make the endpoint disagree with the
     // folder, which is a worse lie than showing a package whose subject starts with `_`.
     // The filter belongs where it already is, on what may be offered to a STUDENT.
+    // THE INDEX, FETCHED IN NODE. `registry.md`: the browser never speaks to the registry, so
+    // CORS never applies and no engine URL ever names a remote origin — Alexandria downloads
+    // the bytes and serves them from its own server.
+    if (url.pathname === '/api/registry') {
+      if (!REGISTRY) return send(res, 200, { configured: false });
+      try {
+        return send(res, 200, { configured: true, url: REGISTRY, index: await fetchIndex(REGISTRY) });
+      } catch (err) {
+        return send(res, 200, { configured: true, url: REGISTRY, error: String(err.message) });
+      }
+    }
+    // An ID AND A VERSION, and nothing else. `registry.md` is explicit that a URL or a path in
+    // this slot would put the caller — and through it the model — into the supply chain, so
+    // the archive location and the digest are read from the index rather than accepted here.
+    if (url.pathname === '/api/install' && req.method === 'POST') {
+      if (!REGISTRY) return send(res, 503, { error: 'no registry configured; set REGISTRY=<index url>' });
+      const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
+      const { id, version } = JSON.parse(body || '{}');
+      const index = await fetchIndex(REGISTRY);
+      const out = await installEngine({ id, version }, { index, indexUrl: REGISTRY, packagesRoot: PACKAGES_ROOT });
+      if (!out.ok) {
+        console.log(`[install] ${id}@${version} refused: ${out.failures.map((f) => f.reason).join('; ')}`);
+        return send(res, 400, { ok: false, failures: out.failures });
+      }
+      // Re-enumerate so the package is servable and listed immediately. It is NOT offerable
+      // to the chooser until the interactive generator respawns: the adapter fixes its schema
+      // at spawn, so the enum of engine ids that process was started with is the enum it has.
+      // Said in the response rather than left for someone to discover.
+      engines.length = 0;
+      engines.push(...await loadEngines());
+      console.log(`[install] ${id}@${version} -> ${out.path.replace(ROOT, '')}${out.already ? ' (already present)' : ''}`);
+      return send(res, 200, { ok: true, already: out.already, offerableAfterRestart: true, engines: engines.length });
+    }
     if (url.pathname === '/api/engines') {
       return send(res, 200, {
         engines: engines.map((e) => ({

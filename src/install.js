@@ -82,7 +82,32 @@ export function checkIdentity({ manifest, entry, idSegment, versionSegment }) {
 // URL and the digest are read from the index here, and the caller may not supply either.
 const ID = /^[a-z0-9][a-z0-9-]*$/;
 const VERSION = /^[0-9]+\.[0-9]+\.[0-9]+$/;
-const SHA256 = /^[0-9a-f]{64}$/;
+// SUBRESOURCE INTEGRITY FORM, `<algorithm>-<base64>`, which is the shape `registry.md`
+// settles on so the algorithm travels with the digest and a future migration is not a flag
+// day. A bare hex string is refused rather than guessed at.
+const SRI = /^([a-z0-9-]+)-([A-Za-z0-9+/]+={0,2})$/;
+
+// A FORMAT version, mirroring `PROTOCOL` in `src/engine.js`. An installer that meets a
+// number it does not know refuses the WHOLE file rather than best-effort a subset it may be
+// misreading — a half-understood index is how a client installs the wrong bytes confidently.
+export const INDEX_FORMAT = 1;
+
+export function checkIndex(index) {
+  if (!index || typeof index !== 'object') return [{ scope: 'index', reason: 'index is not an object' }];
+  if (index.index !== INDEX_FORMAT) {
+    return [{ scope: 'index', reason: `index format ${index.index} is not ${INDEX_FORMAT}, so this file cannot be read safely` }];
+  }
+  if (!Array.isArray(index.engines)) return [{ scope: 'index', reason: 'index has no engines array' }];
+  return [];
+}
+
+/** The digest, split, or the reason it is unusable. Only sha256 is implemented. */
+export function parseHash(hash) {
+  const m = SRI.exec(String(hash ?? ''));
+  if (!m) return { reason: `hash "${hash}" is not in <algorithm>-<base64> form` };
+  if (m[1] !== 'sha256') return { reason: `hash algorithm "${m[1]}" is not supported` };
+  return { algorithm: m[1], digest: m[2] };
+}
 
 export function checkEntry(entry) {
   const f = [];
@@ -92,9 +117,13 @@ export function checkEntry(entry) {
   // Both path segments come from these, so a version that is not a plain triple would be a
   // directory name chosen by a stranger.
   if (!VERSION.test(String(entry.version ?? ''))) say(`version "${entry.version}" is not major.minor.patch`);
-  if (!SHA256.test(String(entry.sha256 ?? ''))) say('sha256 is missing or not 64 hex characters');
-  const p = memberPath(entry.path);
-  if (p.reason) say(`path ${p.reason}`);
+  const h = parseHash(entry.hash);
+  if (h.reason) say(h.reason);
+  // `archive` is relative to the INDEX'S OWN URL, so the host can move or be mirrored without
+  // rewriting every entry. It is a path in the index and never a path handed to the
+  // filesystem — the local directory is composed from `id` and `version` alone.
+  const p = memberPath(entry.archive);
+  if (p.reason) say(`archive ${p.reason}`);
   // The publisher applies the same one-line rule as `isTestEngine`, so a future boundary
   // fixture cannot forget to opt out of the registry.
   if (String(entry.subject ?? '').startsWith('_')) say(`subject "${entry.subject}" is a test fixture and must not be published`);

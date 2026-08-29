@@ -12,7 +12,7 @@ import { gunzipSync } from 'node:zlib';
 import { mkdir, mkdtemp, rename, rm, writeFile, readFile, access } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { validateEngine } from './src/engine.js';
-import { CAPS, overCap, memberPath, checkEntry, checkIdentity, installPath } from './src/install.js';
+import { CAPS, overCap, memberPath, checkEntry, checkIdentity, installPath, checkIndex, parseHash } from './src/install.js';
 
 const fail = (scope, reason) => ({ ok: false, failures: [{ scope, reason }] });
 
@@ -75,6 +75,10 @@ const exists = (p) => access(p).then(() => true, () => false);
  * digest are read from the INDEX here, and no caller may supply either.
  */
 export async function installEngine({ id, version }, { index, indexUrl, packagesRoot }) {
+  // The whole file is refused before any entry is read, so an index written to a format this
+  // installer does not know cannot have one lucky entry picked out of it.
+  const badIndex = checkIndex(index);
+  if (badIndex.length) return { ok: false, failures: badIndex };
   const entry = (index?.engines ?? []).find((e) => e.id === id && e.version === version);
   const bad = checkEntry(entry);
   if (bad.length) return { ok: false, failures: bad };
@@ -85,19 +89,20 @@ export async function installEngine({ id, version }, { index, indexUrl, packages
 
   let raw;
   try {
-    const res = await fetch(new URL(entry.path, indexUrl));
-    if (!res.ok) return fail(id, `registry returned ${res.status} for ${entry.path}`);
+    const res = await fetch(new URL(entry.archive, indexUrl));
+    if (!res.ok) return fail(id, `registry returned ${res.status} for ${entry.archive}`);
     raw = Buffer.from(await res.arrayBuffer());
   } catch (err) {
-    return fail(id, `could not fetch ${entry.path}: ${err.message}`);
+    return fail(id, `could not fetch ${entry.archive}: ${err.message}`);
   }
   // Capped on the way in as well. A compressed size says nothing about what it expands to,
   // but a download that is already enormous does not need to be expanded to be refused.
   if (raw.length > CAPS.bytes) return fail(id, `download exceeds ${CAPS.bytes} bytes`);
 
-  const digest = createHash('sha256').update(raw).digest('hex');
-  if (digest !== entry.sha256) {
-    return fail(id, `sha256 mismatch: index says ${entry.sha256.slice(0, 12)}…, got ${digest.slice(0, 12)}…`);
+  const { digest: want } = parseHash(entry.hash);           // shape already checked above
+  const got = createHash('sha256').update(raw).digest('base64');
+  if (got !== want) {
+    return fail(id, `sha256 mismatch: index says ${want.slice(0, 12)}…, got ${got.slice(0, 12)}…`);
   }
 
   let parsed;
