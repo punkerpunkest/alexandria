@@ -1,0 +1,131 @@
+{
+  "_note": "Hand-authored, like fixtures/interactive/cases.json. Each case starts from an EMPTY ledger and applies its records in order, so no case depends on another. `due` is the count the strip would show and `notices` pins the exact wording, because the notice is the only place the rung drop is said out loud and a silent rewording would make a sandbox coming back as cards read as a downgrade.",
+  "cases": [
+    {
+      "id": "sandbox-left-mid-task-is-owed",
+      "why": "`completed: false` on a scored engine is the owe signal from src/engine.js. It comes back as its DEGRADE SUBSTITUTE, which is already written.",
+      "records": [{
+        "producer": "sandbox",
+        "result": { "completed": false },
+        "item": { "cardType": "multiple-choice", "engine": { "id": "molecule-builder", "name": "bonding sandbox" },
+                  "set": [{ "front": "Which bond?" }, { "front": "How many?" }] }
+      }],
+      "due": 1,
+      "notices": ["You skipped the bonding sandbox earlier. Here it is as recall, one rung down."]
+    },
+    {
+      "id": "sandbox-finished-owes-nothing",
+      "why": "A completed task is not a debt.",
+      "records": [{
+        "producer": "sandbox",
+        "result": { "completed": true },
+        "item": { "cardType": "multiple-choice", "engine": { "id": "microscope", "name": "Compound Microscope" },
+                  "set": [{ "front": "a" }] }
+      }],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "unscored-sandbox-cannot-owe",
+      "why": "An unscored engine has no `completed` key at all — there was no task to leave unfinished, so exploration that ends is exploration that happened. This is why the check is `=== false` and not falsiness.",
+      "records": [{
+        "producer": "sandbox",
+        "result": { "time_on_task_ms": 40000 },
+        "item": { "cardType": "flashcard", "engine": { "id": "microscope", "name": "Compound Microscope" },
+                  "set": [{ "front": "a" }] }
+      }],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "nothing-to-bring-back-is-not-a-debt",
+      "why": "A debt the ledger cannot discharge is a number that only goes up.",
+      "records": [{
+        "producer": "sandbox",
+        "result": { "completed": false },
+        "item": { "cardType": "multiple-choice", "engine": { "id": "microscope", "name": "Compound Microscope" }, "set": [] }
+      }],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "skipped-set-returns-only-what-was-not-reached",
+      "why": "Returning a card they already answered spends the student's time to tell us something recorded the first time.",
+      "records": [{
+        "producer": "micro", "skipped": true, "answered": 2,
+        "item": { "cardType": "flashcard", "set": [{ "front": "a" }, { "front": "b" }, { "front": "c" }, { "front": "d" }] }
+      }],
+      "due": 1,
+      "notices": ["You left this set earlier. Here are the 2 cards you did not reach."]
+    },
+    {
+      "id": "one-card-left-reads-singular",
+      "why": "The count is in the sentence, so it has to agree.",
+      "records": [{
+        "producer": "micro", "skipped": true, "answered": 2,
+        "item": { "cardType": "flashcard", "set": [{ "front": "a" }, { "front": "b" }, { "front": "c" }] }
+      }],
+      "due": 1,
+      "notices": ["You left this set earlier. Here is the card you did not reach."]
+    },
+    {
+      "id": "skipped-on-the-last-card-owes-nothing",
+      "why": "There is nothing left to bring back.",
+      "records": [{
+        "producer": "micro", "skipped": true, "answered": 3,
+        "item": { "cardType": "flashcard", "set": [{ "front": "a" }, { "front": "b" }, { "front": "c" }] }
+      }],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "finished-set-owes-nothing",
+      "records": [{
+        "producer": "micro", "skipped": false, "answered": 3,
+        "item": { "cardType": "flashcard", "set": [{ "front": "a" }, { "front": "b" }, { "front": "c" }] }
+      }],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "avoiding-the-same-thing-twice-is-one-debt",
+      "why": "The id is derived from the content, with no clock in it, so the same abandoned item cannot be owed twice. A student who keeps skipping owes one item that is getting older, not a growing queue.",
+      "records": [
+        { "producer": "sandbox", "result": { "completed": false },
+          "item": { "cardType": "multiple-choice", "engine": { "id": "molecule-builder", "name": "bonding sandbox" },
+                    "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } },
+        { "producer": "sandbox", "result": { "completed": false },
+          "item": { "cardType": "multiple-choice", "engine": { "id": "molecule-builder", "name": "bonding sandbox" },
+                    "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } }
+      ],
+      "due": 1,
+      "notices": ["You skipped the bonding sandbox earlier. Here it is as recall, one rung down."]
+    },
+    {
+      "id": "finishing-a-returning-item-discharges-it",
+      "why": "This is the only thing that clears a debt. `returningId` is what the runtime sends back so the item can be found.",
+      "records": [
+        { "producer": "sandbox", "result": { "completed": false },
+          "item": { "cardType": "multiple-choice", "engine": { "id": "molecule-builder", "name": "bonding sandbox" },
+                    "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } },
+        { "producer": "micro", "skipped": false, "answered": 2, "returningId": "@first",
+          "item": { "cardType": "multiple-choice", "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } }
+      ],
+      "due": 0,
+      "notices": []
+    },
+    {
+      "id": "skipping-a-returning-item-keeps-one-debt",
+      "why": "It stays owed and does not become two. Discharge runs BEFORE the add for exactly this: otherwise an item would settle its own debt and re-open under the same content hash.",
+      "records": [
+        { "producer": "sandbox", "result": { "completed": false },
+          "item": { "cardType": "multiple-choice", "engine": { "id": "molecule-builder", "name": "bonding sandbox" },
+                    "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } },
+        { "producer": "micro", "skipped": true, "answered": 0, "returningId": "@first",
+          "item": { "cardType": "multiple-choice", "set": [{ "front": "Which bond?" }, { "front": "How many?" }] } }
+      ],
+      "due": 1,
+      "notices": ["You skipped the bonding sandbox earlier. Here it is as recall, one rung down."]
+    }
+  ]
+}

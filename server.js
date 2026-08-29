@@ -11,6 +11,7 @@ import { buildInteractiveSchema, buildInteractivePrompt, readInteractive,
          validateInteractive, offerable } from './src/interactive.js';
 import { answeringTimeMs } from './src/micro.js';
 import { validateManifest, errorsOnly, reportText } from './src/manifest.js';
+import { empty as emptyLedger, record as recordResult, dueCount, nextOwed, playable } from './src/ledger.js';
 import { declaredAssets } from './src/assets.js';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,32 @@ const WORLDS_ROOT = join(ROOT, 'worlds');
 // working — but it is now one parameter with a default rather than the single binding the
 // whole process was built around. Selection travels per request from here on.
 const DEFAULT_WORLD = process.env.WORLD ?? 'cartoon';
+
+// THE LEDGER'S FILE. `Alexandria - Storage` puts the ledger under `data/` and calls that
+// root precious — never collected, and the only one worth backing up. It is the student's
+// history, so it is the one thing here that must survive a restart; everything else in this
+// process is either a package on disk or something a model can write again.
+//
+// Reads and writes are SERIALISED through one promise chain. Node runs this file's JavaScript
+// on one thread, but `readFile`/`writeFile` are not atomic against each other: two boundaries
+// resolving close together could both read the same state and the second write would drop the
+// first result. A queue is four lines and the alternative is a lost debt.
+const LEDGER_FILE = join(ROOT, 'data', 'ledger.json');
+let ledgerWork = Promise.resolve();
+const onLedger = (fn) => (ledgerWork = ledgerWork.then(fn, fn));
+
+async function readLedger() {
+  try {
+    return JSON.parse(await readFile(LEDGER_FILE, 'utf8'));
+  } catch {
+    return emptyLedger();                          // absent or unreadable is an empty history
+  }
+}
+async function writeLedger(next) {
+  await mkdir(dirname(LEDGER_FILE), { recursive: true });
+  await writeFile(LEDGER_FILE, JSON.stringify(next, null, 2) + '\n');
+  return next;
+}
 // Hardcoding this made two worlds impossible to run side by side.
 const PORT = Number(process.env.PORT ?? 4173);
 
@@ -359,6 +386,26 @@ createServer(async (req, res) => {
         answeringTimeMs: answeringTimeMs(played.set),
       } });
     }
+    // WHAT IS OWED, AND WHAT COMES BACK. Two calls and no model: the chrome asks for a
+    // count, the boundary asks whether something is due, and neither costs a generation
+    // because the returning item's cards were written when the item was first offered.
+    if (url.pathname === '/api/ledger' && req.method === 'GET') {
+      const ledger = await onLedger(readLedger);
+      return send(res, 200, { due: dueCount(ledger), next: playable(nextOwed(ledger)) });
+    }
+    if (url.pathname === '/api/ledger' && req.method === 'POST') {
+      const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
+      const entry = JSON.parse(body || '{}');
+      // The TIME is stamped here rather than in `src/ledger.js`, which is pure so it can be
+      // tested without freezing a clock.
+      const at = new Date().toISOString();
+      const ledger = await onLedger(async () => writeLedger(recordResult(await readLedger(), entry, at)));
+      const due = dueCount(ledger);
+      console.log(`[ledger] ${entry.producer}${entry.skipped ? ' skipped' : ''}`
+        + `${entry.returningId ? ' (returning)' : ''} -> ${due} due back`);
+      return send(res, 200, { due, next: playable(nextOwed(ledger)) });
+    }
+
     if (url.pathname === '/api/module' && req.method === 'POST') {
       const body = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
       const { question, fixture, world: from } = JSON.parse(body || '{}');

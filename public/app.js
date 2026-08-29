@@ -10,6 +10,9 @@
 // rather than against whichever world happens to exist.
 import { resolveAsset } from '/src/assets.js';
 import { playSet } from '/micro-card.js';
+// The ledger's ENTIRE chrome-facing surface. `chrome.js` owns the strip and has had this
+// waiting behind `?due=` since it was built; the count is the one thing it needs.
+import { setDue } from '/chrome.js';
 // The arena is the OTHER tenant of the main surface, and it imports nothing from here. A
 // world is a shadow root because it ships no JavaScript; an engine is an iframe because it
 // does. See `docs/contracts/arena.md` — the boundary is why this is a mount, not a branch.
@@ -896,6 +899,28 @@ function openInteractive() {
   return node.querySelector('[data-slot="interactive"]') ?? stage;
 }
 
+// WHAT IS OWED. Two calls, no model, and the returning item's cards already exist — they
+// were written when the item was first offered, either as a card set or as the substitute
+// that a cold engine would have degraded to. `Alexandria - Design`: the readout only counts,
+// and what actually discharges the debt is the interactive coming back.
+async function refreshDue() {
+  try {
+    const d = await fetch('/api/ledger').then((r) => r.json());
+    setDue(d?.due ?? 0);
+    return d;
+  } catch { return null; }                     // a ledger that cannot be read owes nothing
+}
+
+// Fire and forget by design. A result that fails to record is a lost debt, which is bad, but
+// blocking the student behind a disk write to tell them so is worse — and the next boundary
+// re-reads the count anyway.
+function tellLedger(entry) {
+  return fetch('/api/ledger', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(entry),
+  }).then((r) => r.json()).then((d) => { setDue(d?.due ?? 0); return d; }).catch(() => null);
+}
+
 // Generated DURING READING, which is the only window it can be generated in without putting
 // a wait inside the wait. Never awaited by the caller: if it has not landed by the time the
 // boundary arrives, the boundary simply has nothing to play, which is today's behaviour.
@@ -916,6 +941,10 @@ function bankInteractive(moduleData, fixture) {
 async function playBanked(ready) {
   const answer = banked;
   banked = null;
+  // WHAT THE LEDGER WOULD NEED TO BRING THIS BACK, captured before it is played rather than
+  // reconstructed after. For a sandbox the set is the DEGRADE SUBSTITUTE, which is exactly
+  // the rung drop the design asks for and costs nothing because it is already written.
+  const item = { cardType: answer.cardType, set: answer.set ?? [], engine: answer.engine ?? null };
   const host = openInteractive();
   const results = [];
   await dress(host);            // both producers can end up drawing in here — see onDegrade
@@ -925,7 +954,7 @@ async function playBanked(ready) {
       cards: answer.set,
       cardType: answer.cardType,
       onCard: (r) => results.push(r),
-      onDone: ({ skipped, answered }) => resolve({ producer: 'micro', skipped, answered, results }),
+      onDone: ({ skipped, answered }) => resolve({ producer: 'micro', skipped, answered, results, item }),
     });
     if (answer.producer !== 'sandbox') return cards();
 
@@ -944,7 +973,7 @@ async function playBanked(ready) {
       // The mount is torn down because the caller owns teardown and the module underneath is
       // not always there yet: a spent arena whose exit still looks pressable is worse than an
       // empty box, and the micro card already removes itself at the same moment.
-      onResult: (r) => { live.destroy(); resolve({ producer: 'sandbox', result: r }); },
+      onResult: (r) => { live.destroy(); resolve({ producer: 'sandbox', result: r, item }); },
     });
     // The chrome's stage is a FALLBACK host, not a declared one — it has no box of its own to
     // give a tenant, so the projector lends the mount the overlay the micro card gets from
@@ -954,6 +983,32 @@ async function playBanked(ready) {
     // The only thing allowed to change the arena's chrome mid-mount, and the reason it is
     // allowed is that without it the student is guessing whether leaving costs a wait.
     ready?.then(() => live.setBanked(true));
+  });
+}
+
+// A RETURNING ITEM, played at a boundary like any other. It is ALWAYS a card set, because
+// the rung drop is the point: `Alexandria - PoC Flow` says a deferred interactive comes back
+// as recognition rather than application, so a skipped sandbox legitimately returns as cards
+// and the notice says so out loud rather than letting it read as a downgrade.
+async function playOwed(owed) {
+  const host = openInteractive();
+  const results = [];
+  await dress(host);
+  return new Promise((resolve) => {
+    playSet(host, {
+      cards: owed.set,
+      cardType: owed.cardType,
+      kind: owed.kind,                          // RETURNING, where a fresh set reads RECALL
+      notice: owed.notice,
+      onCard: (r) => results.push(r),
+      onDone: ({ skipped, answered }) => resolve({
+        producer: 'micro', skipped, answered, results,
+        item: { cardType: owed.cardType, set: owed.set, engine: null },
+        // What lets the ledger discharge it. Without this the item would settle its own debt
+        // and immediately re-open under the same content hash.
+        returningId: owed.returningId,
+      }),
+    });
   });
 }
 
@@ -980,7 +1035,16 @@ async function askFor(question, fixture = null) {
   }).then((r) => r.json()).catch((err) => ({ error: String(err) }));
 
   let played = null;
-  if (banked?.set?.length) played = await playBanked(pending);
+  // OWED BEFORE FRESH. The debt is the thing the product manufactures constantly — skip is
+  // never blocked on any surface — so collecting it has to beat writing another one, or the
+  // count only ever goes up. Read AFTER the module request is in flight, so this costs the
+  // student nothing: it is a local file read behind a generation that is already running.
+  const ledger = await refreshDue();
+  if (ledger?.next) played = await playOwed(ledger.next);
+  else if (banked?.set?.length) played = await playBanked(pending);
+  // Not awaited. A disk write must never stand between the student and the next module, and
+  // the following boundary re-reads the count anyway.
+  if (played) tellLedger(played);
 
   const data = await pending;
   busy = false;
@@ -1005,6 +1069,11 @@ async function askFor(question, fixture = null) {
   }
   // Bank the NEXT interactive now, while this module is being read. Not awaited: the
   // student is reading, and nothing on screen may wait for it.
+  //
+  // A COLLECTED DEBT COSTS ONE BANKED SET. If a returning item took the boundary above, the
+  // set banked during the last module was never played and is replaced here rather than
+  // held: a bank about the previous module, shown two boundaries later, is worse than the
+  // generation it saves. The waste is one cheap call and it only happens when a debt exists.
   bankInteractive(data, fixture);
 }
 
@@ -1034,6 +1103,11 @@ function openingFrame() {
 // multiple worlds existed. So every existing invocation opens the same world it always
 // did, and selection is now a parameter with a default rather than a boot-time constant.
 const params = new URLSearchParams(location.search);
+// THE COUNT SURVIVES A RESTART, which is the whole reason the ledger is a file rather than a
+// variable. `chrome.js` seeds the readout from `?due=` for its own bench; this overwrites it
+// with what is actually owed the moment the real number is known. Not awaited — a readout is
+// never worth delaying the first paint for.
+refreshDue();
 try {
   await openWorld(params.get('world'));
 } catch (err) {
