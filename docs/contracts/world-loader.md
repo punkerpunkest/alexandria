@@ -239,16 +239,24 @@ that is not on a beat, and the validator never enforces it. Both confirmed by ex
 
 ---
 
-## 6. THE GAP: there is no manifest validation
+## 6. THE GAP, CLOSED — kept because it is still the specification
 
-`server.js` loads a world with a bare `JSON.parse` and hands the result straight to
-`buildSchema`. The only manifest rule enforced anywhere in the codebase is this one line:
-
-```js
-throw new Error(`world "${world.id}": channel "${name}" has unknown kind "${ch.kind}"`);
-```
-
-One key, of one member, of one collection. Everything else in the manifest is trusted.
+> [!done] Built 28 Aug; this section was written before it and describes the hole it filled
+> `src/manifest.js` exists: **36 rules**, run in Node at boot against every package under
+> `worlds/`, with `validateManifest` and a `reportText`. `server.js` no longer trusts a
+> manifest — it validates each package, keeps a broken one in the registry with its
+> `problems` rather than crashing, and `/api/worlds` reports `ok` per package. The check
+> suite asserts in both directions that every rule has a hostile case and every case names
+> a real rule, so the two cannot drift.
+>
+> Everything below stays, because it is **why** each rule exists and what it costs when the
+> rule is absent — which no rule ID can carry. Read it as the specification the validator was
+> built from, not as a description of the repository. The paragraph that used to open it —
+> "`server.js` loads a world with a bare `JSON.parse`", "the only manifest rule enforced
+> anywhere is this one line" — was true on 27 Aug and is false now.
+>
+> Corrected 29 Aug after `registry.md` cited this section as live evidence that worlds could
+> not be installed safely, and a website agent was about to build against it.
 
 `Alexandria - Rendering` lists the projector's seven parts and gives the first as
 *"Manifest loader + its own schema — a broken world fails at install, not mid-session."*

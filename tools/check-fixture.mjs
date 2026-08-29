@@ -12,6 +12,7 @@ import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/e
 import { validateMicro, answeringTimeMs, shapeCardResult } from '../src/micro.js';
 import { buildInteractiveSchema, readInteractive, validateInteractive, offerable } from '../src/interactive.js';
 import { validateManifest, MANIFEST_RULES } from '../src/manifest.js';
+import { memberPath, checkEntry, checkIdentity, overCap, CAPS } from '../src/install.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -326,6 +327,39 @@ eq('micro carries no notes — no agent is present when the answer lands', mres.
      MANIFEST_RULES.filter((r) => !covered.has(r)).join(','), '');
   eq('every manifest case names a real rule',
      [...covered].filter((r) => !MANIFEST_RULES.includes(r)).join(','), '');
+}
+
+// ---- the install rules ---------------------------------------------------------
+//
+// The PURE half. The impure half — fetch, hash, gunzip, extract, rename — is exercised
+// against a real gzipped tar over a real HTTP server by `tools/check-install.mjs`, because
+// the interesting failures there are I/O ordering rather than decisions.
+const inst = await json('install/cases.json');
+for (const c of inst.members) {
+  const got = memberPath(c.name);
+  eq(`install/member/${c.id}`, got.reason ?? got.path, c.reason ?? c.path);
+}
+for (const c of inst.entries) {
+  eq(`install/entry/${c.id}`, checkEntry(c.entry).map((f) => f.reason).join('\n'), c.failures.join('\n'));
+}
+for (const c of inst.identity) {
+  eq(`install/identity/${c.id}`,
+     checkIdentity({ manifest: c.manifest, entry: c.entry, idSegment: c.idSegment, versionSegment: c.versionSegment })
+       .map((f) => f.reason).join('\n'),
+     c.failures.join('\n'));
+}
+// COUNTED, NOT READ. A decompression bomb has a small honest header, so the cap can only be
+// enforced against bytes already seen.
+eq('install cap refuses a bomb', String(Boolean(overCap(CAPS.bytes + 1, 1))), 'true');
+eq('install cap refuses too many members', String(Boolean(overCap(0, CAPS.members + 1))), 'true');
+eq('install cap passes a real engine', String(overCap(64 * 1024, 12)), 'null');
+
+// `CONTRACT.md` invariant 3 and `registry.md` invariant 7: the fetch does not live in `src/`.
+// A grep, so it is run rather than claimed.
+{
+  const src = await readFile(join(ROOT, 'src/install.js'), 'utf8');
+  eq('install rules do no network', String(/\bfetch\(|node:https?|XMLHttpRequest/.test(src)), 'false');
+  eq('install rules touch no filesystem', String(/node:fs|child_process/.test(src)), 'false');
 }
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);

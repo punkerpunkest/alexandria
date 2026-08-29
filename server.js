@@ -127,13 +127,51 @@ function pick(id) {
 // surfacing mid-session. Same discipline as the world manifests above, and the failure
 // policy asks for exactly this: a broken package fails at LOAD.
 const engines = [];
-for (const d of await readdir(join(ROOT, 'engines'), { withFileTypes: true })) {
-  if (!d.isDirectory()) continue;
-  const m = JSON.parse(await readFile(join(ROOT, 'engines', d.name, 'engine.json'), 'utf8'));
-  const bad = validateEngine(m);
-  if (bad.length) throw new Error(`engine "${d.name}": ${bad.map((f) => `${f.scope}: ${f.reason}`).join('; ')}`);
-  engines.push(m);
+// TWO ROOTS. `engines/` is what ships with the app, one level and unversioned. `packages/
+// engines/<id>/<version>/` is what the installer writes, and `Alexandria - Storage` settles
+// that layout: a version directory is written once and an update is a new SIBLING, so two
+// versions can sit side by side while different sessions pin different ones.
+//
+// An installed package WINS over a bundled one with the same id, and the highest version
+// wins among installed ones. A bundled engine is a sample; an installed one is a choice.
+async function loadEngines() {
+  const found = new Map();
+  const take = (m, base) => {
+    const bad = validateEngine(m);
+    // A BUNDLED engine still throws — it ships with the app, so a broken one is our bug and
+    // should stop the boot. An INSTALLED one is skipped and reported: the installer already
+    // refused everything it could check, and a package that rots on disk afterwards must not
+    // take the whole session down with it.
+    if (bad.length) return { id: m?.id, bad };
+    found.set(m.id, { ...m, _base: base });
+    return null;
+  };
+  const problems = [];
+  for (const d of await readdir(join(ROOT, 'engines'), { withFileTypes: true })) {
+    if (!d.isDirectory()) continue;
+    const m = JSON.parse(await readFile(join(ROOT, 'engines', d.name, 'engine.json'), 'utf8'));
+    const bad = take(m, `/engines/${d.name}`);
+    if (bad) throw new Error(`engine "${d.name}": ${bad.bad.map((f) => `${f.scope}: ${f.reason}`).join('; ')}`);
+  }
+  const installedRoot = join(ROOT, 'packages', 'engines');
+  for (const d of await readdir(installedRoot, { withFileTypes: true }).catch(() => [])) {
+    if (!d.isDirectory() || d.name.startsWith('.')) continue;      // `.staging-*` is not a package
+    const versions = (await readdir(join(installedRoot, d.name), { withFileTypes: true }).catch(() => []))
+      .filter((v) => v.isDirectory()).map((v) => v.name).sort();
+    const version = versions[versions.length - 1];
+    if (!version) continue;
+    try {
+      const m = JSON.parse(await readFile(join(installedRoot, d.name, version, 'engine.json'), 'utf8'));
+      const bad = take(m, `/packages/engines/${d.name}/${version}`);
+      if (bad) problems.push(`installed engine "${d.name}@${version}": ${bad.bad.map((f) => f.reason).join('; ')}`);
+    } catch (err) {
+      problems.push(`installed engine "${d.name}@${version}": ${err.message}`);
+    }
+  }
+  for (const p of problems) console.log(`  [engine warning] ${p}`);
+  return [...found.values()];
 }
+engines.push(...await loadEngines());
 const catalog = offerable(engines);
 
 // ONE GENERATOR PER WORLD, and lazily, because a generator is a PROCESS. The adapter
@@ -428,11 +466,15 @@ createServer(async (req, res) => {
     // the network; neither is sufficient alone. `ENGINE_CSP` names what it blocks rather
     // than what it allows, because `'self'` matches nothing from an opaque origin — the
     // reasoning is written down in `src/engine.js`.
-    if (url.pathname.startsWith('/engines/')) {
+    if (url.pathname.startsWith('/engines/') || url.pathname.startsWith('/packages/engines/')) {
       const f = join(ROOT, url.pathname);
       // Containment, the same invariant a world package has. `new URL()` already collapses
-      // `..`, so this catches the encoded forms and anything a future caller invents.
-      if (!f.startsWith(join(ROOT, 'engines'))) throw new Error('path escapes the engines root');
+      // `..`, so this catches the encoded forms and anything a future caller invents. Both
+      // roots get it: an installed package is community code and has LESS claim to trust
+      // than a bundled one, not more.
+      const engineRoot = url.pathname.startsWith('/packages/')
+        ? join(ROOT, 'packages', 'engines') : join(ROOT, 'engines');
+      if (!f.startsWith(engineRoot)) throw new Error('path escapes the engines root');
       // THE HEADER IS NOT ENOUGH, and this is measured rather than assumed. Served as a
       // response header, `connect-src 'none'` was silently not enforced — a browser
       // extension rewriting headers is enough to remove it, and the failure is invisible:

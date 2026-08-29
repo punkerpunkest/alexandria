@@ -423,14 +423,29 @@ What is actually blocked is three different things, and the asymmetry the old ca
 about has closed rather than deepened — the world half now carries **more** machinery than
 the engine half.
 
-1. **Nothing installs anything.** There is no code anywhere that fetches a package from a URL
-   and writes it to disk, for worlds *or* engines. `grep` for a registry fetch in `server.js`,
-   `src/assets.js` and `src/engine.js` returns nothing. Both halves load from a local folder a
-   human put things in.
-2. **Install paths are not versioned.** `packageBase()` returns `/worlds/${id}` and
-   `enginePackageBase()` returns `/engines/${id}`. The versioned immutable directories this
-   contract specifies further up are unimplemented on both sides, so there is no second
-   version of anything to install beside a first.
+1. ~~**Nothing installs anything.**~~ Closed 29 Aug **for engines**. `installer.js` sits beside
+   `server.js` — not in `src/`, per invariant 7 and `CONTRACT.md` invariant 3 — and does
+   fetch, hash, extract and rename; `src/install.js` holds the rules it enforces and is pure,
+   so they are testable without a network. The tar reader is written rather than depended on
+   because invariant 8 forbids spawning `tar`, and because the size rule has to be **counted**
+   as extraction proceeds rather than read from a header.
+   > [!done] Proven against hostile packages, not argued
+   > `tools/check-install.mjs` builds the archives itself — a hostile fixture committed to the
+   > repo is a hostile file on every clone, and the bomb is 40MB of it — serves them over a
+   > real HTTP server, and asserts that each is refused BY NAME with nothing left on disk:
+   > a member escaping the package, a symlink, a decompression bomb, a manifest disagreeing
+   > with the index, a tampered digest, and a package that fails `validateEngine`. 23 checks.
+   >
+   > **Worlds are still not installable.** The rules generalise and the fetcher does not: it
+   > re-reads `engine.json` and runs `validateEngine`, and a world would need `validateManifest`
+   > and its own directory layout. That is the remaining half.
+2. ~~**Install paths are not versioned.**~~ Closed 29 Aug for engines. An installed package
+   lands at `packages/engines/<id>/<version>/`, written once, and an update is a new sibling.
+   `enginePackageBase()` is still the only URL construction site — it now returns a `_base`
+   assigned when the package was enumerated, which is what lets two versions sit side by side
+   without that function knowing which session pinned which. An installed package WINS over a
+   bundled one of the same id, and the highest version wins among installed ones.
+   `packageBase()` in `src/assets.js` is the untouched twin for worlds.
 3. ~~**Engines have no index endpoint.**~~ Closed 29 Aug — it was the smallest of the three.
    `GET /api/engines` returns id, name, subject, version, author, `review`, `scored`,
    `levels`, task `kinds` and `offerable` per package, matching the shape of `/api/worlds`.

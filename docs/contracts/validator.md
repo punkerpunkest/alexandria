@@ -24,8 +24,9 @@ world.
 1. `world` is a **loaded, well-formed manifest**. `validate` reads `world.channels`,
    `world.assets`, `world.beats.require` and `world.module.channels` without guarding
    the first two: a manifest missing `channels` or `beats` throws a `TypeError` out of
-   this function. Manifest validation is the world loader's lane and `CONTRACT.md`
-   records that it does not exist yet, so this precondition is currently unenforced.
+   this function. Manifest validation is the world loader's lane, and as of 28 Aug it is
+   **enforced**: `src/manifest.js` runs 36 rules at boot and a package that fails them is
+   kept out of the session rather than handed here. This precondition used to be a hope.
    The failure policy — *a broken world should fail at load, not mid-session* — is what
    makes it the loader's problem and not this file's.
 2. `out` is whatever the adapter returned, and may be `null`, `undefined` or malformed.

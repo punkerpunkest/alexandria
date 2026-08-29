@@ -8,7 +8,8 @@
     "app": "electron electron/main.js",
     "start": "node server.js",
     "check-fixture": "node tools/check-fixture.mjs",
-    "capture-fixture": "node tools/capture-fixture.mjs"
+    "capture-fixture": "node tools/capture-fixture.mjs",
+    "check-install": "node tools/check-install.mjs"
   },
   "devDependencies": {
     "electron": "^39.8.10"

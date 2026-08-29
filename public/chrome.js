@@ -43,23 +43,16 @@ addEventListener('keydown', (e) => {
 // They report and they click through to nothing. A readout with nothing to report does
 // not draw: an empty value would be furniture pretending to be information.
 
-// Quota. `--orange` exists for exactly one state and this is it. NOTHING COMPUTES A
-// QUOTA FRACTION YET — server.js tracks cost per call, not a fraction of a limit — so
-// this stays hidden in a real session and is reachable with `?quota=0.62` for design
-// verification. The thresholds are here so the pressure state has a home the moment a
-// real number does.
-export function setQuota(fraction) {
-  const el = $('#quota');
-  if (fraction == null || Number.isNaN(fraction)) { el.hidden = true; return; }
-  const pct = Math.round(fraction * 100);
-  el.hidden = false;
-  $('#quotatext').textContent = `${pct}% quota`;
-  $('#quotadot').className = 'dot ' + (pct >= 90 ? 'orange' : pct >= 75 ? 'warn' : 'ok');
-}
 
 // What is owed. Student-facing wording is "due back"; "owed" is the ledger's word and
-// stays on our side of the glass. THE LEDGER DOES NOT EXIST IN CODE — no arena, no
-// bank, no skip — so this is likewise driven by `?due=2` until it does.
+// stays on our side of the glass.
+//
+// Still driven by `?due=2`, and the reason has changed. This used to read "the ledger does
+// not exist in code — no arena, no bank, no skip"; the arena, the bank and skip all landed
+// on 28–29 Aug and manufacture owed items constantly. A narrow ledger was then built and
+// REVERTED on Jordan's call: the PoC does not carry memory across a boundary, so every
+// interactive knows the module before it and nothing else. Nothing counts, so this stays at
+// zero in a real session. See the revert commit for what comes back with it.
 export function setDue(count) {
   const el = $('#due');
   if (!count) { el.hidden = true; return; }
@@ -68,7 +61,6 @@ export function setDue(count) {
 }
 
 const params = new URLSearchParams(location.search);
-setQuota(params.has('quota') ? Number(params.get('quota')) : null);
 setDue(params.has('due') ? Number(params.get('due')) : 0);
 
 // ── Settings: the world section ───────────────────────────────────────────────────

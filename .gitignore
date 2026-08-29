@@ -8,3 +8,6 @@ out/
 .DS_Store
 *.log
 npm-debug.log*
+
+# Installed packages: fetched at runtime, never committed
+packages/

@@ -84,9 +84,19 @@ export const CAPS = { depth: 6, keys: 32, items: 64, string: 600, notes: 600 };
 const REVIEWS = ['unreviewed', 'community', 'verified'];
 const REQUIRED = ['id', 'name', 'version', 'author', 'review', 'entry', 'subject', 'scored', 'taskSpace'];
 
-// The package root an engine's files are served from. Callers never join this themselves.
+// The package root an engine's files are served from. Callers never join this themselves,
+// and `registry.md` invariant 6 is a grep on exactly that: this is the ONLY place an engine
+// URL is constructed, so "no engine URL names a remote origin" is checkable rather than
+// claimed. Alexandria downloads a package and serves the bytes from its own server; the
+// browser never fetches from the registry.
+//
+// `_base` IS RUNTIME-ASSIGNED, by whatever enumerated the package. A bundled engine keeps
+// the one-level path it has always had; an INSTALLED one carries `/packages/engines/<id>/
+// <version>`, which is the versioned immutable directory `Alexandria - Storage` settles on.
+// Putting the version in the value rather than deriving it here is what keeps two versions
+// able to sit side by side without this function needing to know which session pinned which.
 export function enginePackageBase(engine) {
-  return `/engines/${engine.id}`;
+  return engine._base ?? `/engines/${engine.id}`;
 }
 
 export function entryUrl(engine) {

@@ -222,7 +222,7 @@ body {
 
 /* ── Settings ───────────────────────────────────────────────────────────────────── */
 
-/* Full bleed below the strip. No gradient, no quota — settings is the chrome speaking
+/* Full bleed below the strip. No gradient — settings is the chrome speaking
    about itself, so it takes the whole surface and drops the session's furniture. It
    shares the grid cell with the stage rather than replacing it, so the projector's
    ResizeObserver never sees the stage box collapse to zero. */
@@ -242,9 +242,11 @@ body {
 }
 body.settings-open #settings { display: block; }
 
-/* Settings drops the session's furniture — no quota, no progress, no owed count. They
-   report on a session, and settings is the chrome talking about itself, so the strip
-   carries the symbol alone. Jordan's call, 26 Aug. */
+/* Settings drops the session's furniture — no progress, no owed count. They report on a
+   session, and settings is the chrome talking about itself, so the strip carries the symbol
+   alone. Jordan's call, 26 Aug. The quota readout was here too until 29 Aug, when it was
+   removed outright: nothing ever computed a fraction of a limit, so it could only ever show
+   a number typed into `?quota=`. */
 body.settings-open #strip .readout { display: none; }
 
 /* Top-anchored, horizontally centred. "In the middle" is the column, not the vertical
