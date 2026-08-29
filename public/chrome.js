@@ -74,35 +74,37 @@ setDue(params.has('due') ? Number(params.get('due')) : 0);
 // ── Settings: the world section ───────────────────────────────────────────────────
 //
 // The dropdown is the whole of world switching for the PoC — no picker, no storefront.
-// THE WORLD LOADER DOES NOT EXIST YET: `server.js` still takes one world from the
-// `WORLD` env var, so the list below has exactly one entry and changing it does
-// nothing. That is the next slice, and this is the surface waiting for it.
-
+//
+// IT IS NOW WIRED. This block used to say "the world loader does not exist yet" and mirror
+// `#worldname` into a one-option list, so the only world you could pick was the one you were
+// already in and selecting it did nothing. The loader landed with `multi-world` on 28 Aug and
+// nothing came back to connect this; Jordan found it by looking for the control and not
+// finding one. `app.js` owns `switchWorld`, so it drives these two functions rather than this
+// file reaching across for the list.
 const picker = $('#worldpicker');
+let onPick = null;
 
-function showWorlds(names, active) {
-  const any = names.length > 0;
+/** Called by `app.js` with `/api/worlds` and the mounted id. */
+export function showWorlds(worlds, activeId) {
+  const any = worlds.length > 0;
   $('#worlds-present').hidden = !any;
   $('#worlds-absent').hidden = any;
   if (!any) return;
-  picker.replaceChildren(...names.map((n) => {
+  picker.replaceChildren(...worlds.map((w) => {
     const o = document.createElement('option');
-    o.value = o.textContent = n;
-    o.selected = n === active;
+    o.value = w.id ?? w;
+    // A BROKEN PACKAGE IS SHOWN AND DISABLED, not hidden. `docs/contracts/world-loader.md`
+    // keeps a package that fails validation in the registry precisely so the student can see
+    // that the thing they installed is there and why it will not open.
+    o.textContent = (w.name ?? w) + (w.ok === false ? ' · unavailable' : '');
+    o.disabled = w.ok === false;
+    o.selected = (w.id ?? w) === activeId;
     return o;
   }));
 }
 
-// The projector writes the mounted world's name into #worldname when it mounts. Mirror
-// it rather than fetching /api/world a second time, so there is one source of truth for
-// which world is live and the chrome cannot disagree with what is on screen.
-const worldname = $('#worldname');
-const syncWorld = () => {
-  const name = worldname.textContent.trim();
-  showWorlds(name ? [name] : [], name);
-};
-new MutationObserver(syncWorld).observe(worldname, { childList: true, characterData: true, subtree: true });
-syncWorld();
+export function onWorldChange(fn) { onPick = fn; }
+picker.addEventListener('change', () => onPick?.(picker.value));
 
 // `?worlds=` previews the installed and the empty state without a loader behind either.
 if (params.has('worlds')) {

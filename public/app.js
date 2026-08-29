@@ -10,6 +10,10 @@
 // rather than against whichever world happens to exist.
 import { resolveAsset } from '/src/assets.js';
 import { playSet } from '/micro-card.js';
+// The settings dropdown is the chrome's control and `switchWorld` is this file's, so this
+// file drives it. See the note in `chrome.js`: the two halves shipped a day apart and were
+// never connected.
+import { showWorlds, onWorldChange } from '/chrome.js';
 // The arena is the OTHER tenant of the main surface, and it imports nothing from here. A
 // world is a shadow root because it ships no JavaScript; an engine is an iframe because it
 // does. See `docs/contracts/arena.md` — the boundary is why this is a mount, not a branch.
@@ -336,6 +340,10 @@ async function openWorld(id) {
           : 'first mount, warming behind stage 0, ') +
     `${Math.round(performance.now() - t0)}ms`);
 
+  // The settings list, refreshed on every mount rather than once at boot: a package can be
+  // dropped into `worlds/` while the app is open, and `ok` can change under it.
+  refreshWorldList();
+
   // Not awaited, deliberately: the frame is already on screen and this is stage 5's
   // "streams in the background" applied to the world the session started in.
   if (!isSwitch) {
@@ -377,6 +385,18 @@ async function switchWorld(id) {
 // that exercises the switching mechanism so it can be driven and screenshotted without
 // pre-empting a design this lane has no business making. `/api/worlds` is the surface the
 // real list will be built on; this is the smallest possible consumer of it.
+// SWITCHING RESETS THE SESSION, and that is already true rather than something added here:
+// `unmount()` clears `screens`, `at`, `prev`, `rendered`, `persisted` and — the one that
+// matters — `banked`, because a bank written for the outgoing world's module would otherwise
+// put one world's boundary inside another's session. You land back on the cold-start ask.
+async function refreshWorldList() {
+  try {
+    const { worlds } = await fetch('/api/worlds').then((r) => r.json());
+    showWorlds(worlds, worldId);
+    onWorldChange(switchWorld);
+  } catch { /* the list is a convenience; a session with one world still works without it */ }
+}
+
 async function devWorldSwitcher() {
   const { worlds } = await fetch('/api/worlds').then((r) => r.json());
   const sel = document.createElement('select');
@@ -901,11 +921,33 @@ function openInteractive() {
 // boundary arrives, the boundary simply has nothing to play, which is today's behaviour.
 function bankInteractive(moduleData, fixture) {
   banked = null;
+  // THE LAYERING, MADE VISIBLE. The status line already reported reading time against MODULE
+  // generation and called it COVERED, which is the wrong pair for this question — it is the
+  // INTERACTIVE that has to finish inside the read, and nothing on screen said whether it
+  // did. Asked for by Jordan, who could not tell from the outside whether the bank was
+  // actually overlapping the reading or quietly arriving late.
+  //
+  // `t0` is taken HERE rather than inside the `.then`, so it measures from the moment the
+  // request is fired — which is immediately after `render()`, the moment the student starts
+  // reading. That is the number that answers the question.
+  const t0 = performance.now();
   bankRun = fetch('/api/interactive', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify(fixture ? { fixture: stickyInteractive } : { module: moduleData }),
   }).then((r) => r.json())
-    .then((d) => { banked = d?.set?.length ? d : null; return banked; })
+    .then((d) => {
+      banked = d?.set?.length ? d : null;
+      const took = Math.round(performance.now() - t0);
+      const what = banked
+        ? (banked.producer === 'sandbox' ? `sandbox ${banked.engine.id}` : `${banked.set.length} cards`)
+        : 'nothing';
+      // APPENDED, not replaced: the module's own metrics are still true and this is a second,
+      // later fact about the same module. Read back off the element rather than tracked in a
+      // variable, so a status written by anything else is not silently discarded.
+      setStatus(`${$('#metrics').textContent}\ninteractive banked ${(took / 1000).toFixed(1)}s into the read — ${what}`);
+      console.log(`[bank] ${what} after ${took}ms of reading`);
+      return banked;
+    })
     .catch(() => { banked = null; });
   return bankRun;
 }
