@@ -123,20 +123,6 @@ function pick(id) {
   return pkg;
 }
 
-// A WORLD DECLARES WHERE A NON-BEAT SCREEN SITS, and a declaration naming a screen type the
-// package never shipped is a broken package. It fails HERE, at load, for the same reason a
-// broken engine manifest does below: the alternative is a student reaching a boundary and
-// finding the interactive has nowhere to go. The template itself is served by /api/world
-// with every other screen type, so nothing further is needed to honour it.
-for (const [type, hosted] of Object.entries(world.hosts ?? {})) {
-  if (!world.screens?.[type]) {
-    throw new Error(`world "${world.id}": hosts declares screen type "${type}", which is not declared in world.screens`);
-  }
-  if (!Array.isArray(hosted) || !hosted.length) {
-    throw new Error(`world "${world.id}": hosts."${type}" must list what that screen type holds, and it lists nothing`);
-  }
-}
-
 // ENGINES ARE LOADED ONCE, AT STARTUP, and a broken package stops the server rather than
 // surfacing mid-session. Same discipline as the world manifests above, and the failure
 // policy asks for exactly this: a broken package fails at LOAD.
@@ -230,6 +216,12 @@ async function buildModule(pkg, question) {
 
   return {
     screens: paginate(world, beats, res.data ?? {}),
+    // THE BEATS TRAVEL WITH THE MODULE, and they have to. The boundary chooser is handed
+    // this object to decide what plays next, and it reads `beats` — which was never here,
+    // so every card set was generated from the literal string "(nothing)" and came back
+    // asking content-free questions like "what topic did you just learn about?". Screens
+    // are the projector's shape; beats are the material.
+    beats,
     degraded,
     remainingFailures: failures,
     metrics: {
@@ -381,6 +373,7 @@ createServer(async (req, res) => {
         console.log(`[module] ${pkg.id} fixture "${fixture}" -> ${mod.beats.length} beats, no model call`);
         return send(res, 200, {
           screens: paginate(pkg.world, mod.beats, mod),
+          beats: mod.beats,
           degraded: false, remainingFailures: [],
           metrics: { fixture, beats: mod.beats.length, readingTimeMs: readingTimeMs(pkg.world, mod.beats, mod),
                      wallMs: 0, repairs: 0, attempts: 0, costUsd: 0,

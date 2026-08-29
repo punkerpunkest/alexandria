@@ -1,56 +1,158 @@
 /* Alexandria's own surface, so Tokyo Night — the rule on the books is that a WORLD may
    never read chrome tokens, and Alexandria reading its own is not that rule. The values are
    set as scoped custom properties in `micro-card.js` rather than declared here on `:root`,
-   because a `:root` declaration is precisely the inheritance leak this file must not create. */
+   because a `:root` declaration is precisely the inheritance leak this file must not create.
+
+   EVERY NUMBER BELOW IS MEASURED OFF THE FIGMA BOARDS, not chosen here. File
+   `jyAPEoZea6zdiSj9IGdIOF`, page `6:27 Anatomy`, the five card boards:
+     61:2   micro, multiple choice / asked      61:49  … / correct     61:103 … / wrong
+     62:2   micro, flashcard / cue              62:36  … / revealed
+   The boards draw at 1440x900 with a 40px chrome strip on top, so their main surface is
+   1440x860 and every y here is relative to that surface, which is the box this card mounts
+   into. The chrome's own strip (symbol, quota) is deliberately absent: it belongs to the
+   chrome branch and a card that drew it would be drawing someone else's furniture. */
 .mcard {
+  /* Kept from the first build and load-bearing beyond looks: the degrade path paints a card
+     set OVER a spent arena, and `arena.md` records that the notice is covered by its own
+     substitute. Take the overlay away and the degrade notice shows through. */
   position: absolute; inset: 0; z-index: 5;
   display: flex; flex-direction: column;
-  background: var(--mc-bg); color: var(--mc-text);
-  font: 15px/1.55 ui-monospace, "Hack Nerd Font", SFMono-Regular, Menlo, monospace;
+  background: var(--mc-bg-dark); color: var(--mc-text);
+  /* Hack FIRST. The old stack opened with `ui-monospace`, which always resolves, so the
+     bundled face never got a turn and the boards' metrics never applied. */
+  font: 400 15px/24px "Hack Nerd Font", Hack, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
 }
+
+/* ── Set header ─────────────────────────────────────────────────────────────
+   Board: x=36, y=36, w=1368, h=26. No rule beneath it — the first build drew a
+   56px bar with a bottom border, which reads as a toolbar and the boards have none. */
 .mcard-head {
-  flex: 0 0 56px; display: flex; align-items: center; gap: 16px;
-  padding: 0 22px; border-bottom: 1px solid var(--mc-border);
+  flex: 0 0 auto; height: 26px; margin: 36px 36px 0;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.mcard-count { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--mc-muted); }
+/* Names why the set is on screen: RECALL normally, RETURNING when it is an owed item
+   coming back (board 80:2). Label 13/20, and NOT letterspaced — the board's 6-glyph
+   "RECALL" measures 47px, which is exactly 6 x 7.8 at 13px mono. */
+.mcard-kind { font-size: 13px; line-height: 20px; color: var(--mc-muted); }
+/* Board: right group is 107 wide — counter 36, an 18px gap, then a 53px pill. */
+.mcard-head-right { display: flex; align-items: center; gap: 18px; }
+.mcard-count { font-size: 12px; line-height: 18px; color: var(--mc-muted); }
 .mcard-skip {
-  margin-left: auto; min-width: 96px; padding: 8px 16px;
-  border: 1px solid var(--mc-border); border-radius: 10px;
-  background: transparent; color: var(--mc-muted); font: inherit; font-size: 13px; cursor: pointer;
+  height: 26px; padding: 0 12px; border: 1px solid var(--mc-border); border-radius: 6px;
+  background: transparent; color: var(--mc-muted); font: inherit; cursor: pointer;
 }
 .mcard-skip:hover { color: var(--mc-dim); border-color: var(--mc-muted); }
 
-.mcard-body { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 22px; }
-.mcard-front { margin: 0 0 20px; font-size: 19px; line-height: 1.45; }
-.mcard-back {
-  margin: 18px 0 0; padding: 16px 18px; border-radius: 12px;
-  background: var(--mc-surface); border: 1px solid var(--mc-border); color: var(--mc-dim);
-}
-.mcard-options { display: flex; flex-direction: column; gap: 10px; }
+.mcard-body { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* ── Multiple choice ────────────────────────────────────────────────────────
+   Board: a 720-wide column centred in 1440, top at y=120. The header occupies 36..62,
+   so the gap above the column is 58. There is NO card container — the question sits
+   straight on the ground, which the first build got wrong by boxing it. */
+.mcard-mc { width: min(720px, 100% - 72px); margin: 0 auto; padding: 58px 0 48px; }
+.mcard-question { margin: 0; font-size: 19px; line-height: 28px; font-weight: 700; color: var(--mc-text); }
+/* Board: a 24px gap between every block in this column. */
+.mcard-options { margin-top: 24px; display: flex; flex-direction: column; gap: 9px; }
 .mcard-option {
-  text-align: left; padding: 13px 16px; border-radius: 12px;
-  border: 1px solid var(--mc-border); background: var(--mc-surface);
-  color: var(--mc-text); font: inherit; cursor: pointer;
+  height: 48px; padding: 0 16px 0 14px; border-radius: 6px;
+  border: 1px solid var(--mc-border); background: var(--mc-bg);
+  display: flex; align-items: center; gap: 14px;
+  color: var(--mc-text); font: inherit; text-align: left; cursor: pointer;
 }
 .mcard-option:hover:not(:disabled) { border-color: var(--mc-accent); }
-.mcard-option:disabled { cursor: default; opacity: .75; }
-.mcard-option.is-right { border-color: var(--mc-ok); color: var(--mc-ok); opacity: 1; }
-.mcard-option.is-wrong { border-color: var(--mc-bad); color: var(--mc-bad); opacity: 1; }
-/* The key, shown when they missed it. Muted rather than celebratory: the response beneath
-   is doing the teaching, and two loud colours at once reads as a scoreboard. */
-.mcard-option.is-key { border-color: var(--mc-ok); opacity: 1; }
+.mcard-option:disabled { cursor: default; }
+/* The letter key: 22x22 at x=14, so the label lands at 50. It is a real affordance on the
+   board rather than decoration, and it is what carries the answer colour once graded. */
+.mcard-key {
+  flex: 0 0 22px; width: 22px; height: 22px; border-radius: 4px;
+  background: var(--mc-bg-hi); color: var(--mc-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 18px;
+}
+.mcard-option-text { flex: 1; min-width: 0; }
+/* "correct" / "you chose this", right-aligned 16px off the edge. Meta 12/18. */
+.mcard-flag { flex: 0 0 auto; font-size: 12px; line-height: 18px; }
 
-.mcard-foot { flex: 0 0 auto; padding: 0 22px 22px; }
-.mcard-response { margin: 0 0 16px; padding: 14px 16px; border-radius: 12px; background: var(--mc-surface); }
-.mcard-response.is-right { border-left: 3px solid var(--mc-ok); }
-.mcard-response.is-wrong { border-left: 3px solid var(--mc-warn); }
-.mcard-rate { display: flex; gap: 10px; }
-.mcard-rate .mcard-option { flex: 1; text-align: center; }
-.mcard-primary {
-  min-width: 116px; padding: 11px 20px; border-radius: 10px;
-  border: 1px solid var(--mc-border); background: transparent;
-  color: var(--mc-dim); font: inherit; font-size: 13px; cursor: pointer;
+/* BOTH rows are marked when they miss it, and that is the board's call rather than mine.
+   The first build muted the key on a wrong answer, reasoning that two colours at once read
+   as a scoreboard; boards 61:103 shows the correct row green AND the chosen row red, because
+   a student who cannot see which one was right has to go looking for it. */
+.mcard-option.is-correct { border-color: var(--mc-ok); }
+.mcard-option.is-correct .mcard-key { background: var(--mc-ok); color: var(--mc-bg-darker); }
+.mcard-option.is-correct .mcard-flag { color: var(--mc-ok); }
+.mcard-option.is-chosen-wrong { border-color: var(--mc-bad); }
+.mcard-option.is-chosen-wrong .mcard-key { background: var(--mc-bad); color: var(--mc-bg-darker); }
+.mcard-option.is-chosen-wrong .mcard-flag { color: var(--mc-bad); }
+
+/* Board: a 3px rule at x=0 and text at x=16. No fill, no radius — the first build gave it a
+   filled surface box, which competes with the option rows directly above it. */
+.mcard-response {
+  margin: 24px 0 0; padding-left: 16px; border-left: 3px solid var(--mc-border);
+  color: var(--mc-dim);
 }
-.mcard-primary.is-banked {
-  background: var(--mc-accent); border-color: var(--mc-accent); color: var(--mc-bg); font-weight: 700;
+.mcard-response.is-right { border-left-color: var(--mc-ok); }
+.mcard-response.is-wrong { border-left-color: var(--mc-bad); }
+/* Board: filled accent, 32 tall, 16px sides. It is filled unconditionally — the first build
+   only filled it once the next module had landed, which is the ARENA's rule (its exit changes
+   to `Continue`), borrowed here where nothing needed it. */
+.mcard-next {
+  margin-top: 24px; height: 32px; padding: 0 16px; border: 0; border-radius: 6px;
+  background: var(--mc-accent); color: var(--mc-bg-darker);
+  font: inherit; font-weight: 500; cursor: pointer;
 }
+
+/* ── Flashcard ──────────────────────────────────────────────────────────────
+   A CAROUSEL of 960x560 white cards with the neighbours showing at both edges. The first
+   build had no card at all — it set the term as a paragraph on the dark ground and put a
+   "Show the answer" button under it, which is a different component from the one designed.
+
+   Board: current at x=240..1200, previous at -760..200, next at 1240..2200. Three 960s and
+   two 40 gaps is 2960; centred in 1440 that overhangs 760 each side, which reproduces those
+   exact positions. So the geometry falls out of a centred flex row and needs no absolute
+   placement. */
+.mcard-fc { padding: 48px 0 48px; }
+.mcard-deck { height: 560px; display: flex; justify-content: center; gap: 40px; overflow: hidden; }
+.mcard-face {
+  flex: 0 0 min(960px, 100% - 96px); height: 560px; border-radius: 20px;
+}
+/* The neighbours are flat and unreadable on purpose: they say a deck exists, nothing more. */
+.mcard-face.is-peek { background: var(--mc-muted); }
+.mcard-face.is-current {
+  background: var(--mc-white); box-shadow: 0 8px 28px rgb(0 0 0 / .38);
+  border: 0; padding: 48px 80px; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font: inherit; color: var(--mc-bg-darker); text-align: center;
+}
+/* The whole face is the target. The board's affordance is "Click to reveal", not a button. */
+.mcard-face.is-current[data-reveal] { cursor: pointer; }
+/* Hero 40/52 — one of the two styles the design note records as added on 26 Aug for the
+   flashcard, because its term set is larger than anything else the chrome holds. */
+.mcard-term { font-size: 40px; line-height: 52px; font-weight: 700; }
+.mcard-hint {
+  position: absolute; left: 0; right: 0; bottom: 48px;
+  font-size: 12px; line-height: 18px; color: var(--mc-muted);
+}
+/* Revealed: the term shrinks to an accent label pinned at the top (board y=48) and the back
+   takes the middle. Anchoring it absolutely keeps the back centred on the card rather than
+   centred on what is left below the term. */
+.mcard-term-small {
+  position: absolute; left: 0; right: 0; top: 48px;
+  font-size: 15px; line-height: 24px; color: var(--mc-accent);
+}
+.mcard-back { margin: 0; max-width: 760px; font-size: 19px; line-height: 28px; }
+
+/* Board: 960 wide, 36 below the card, three 312 cells with 12px gaps — and OUTSIDE the white
+   card, which matters: rating is the student talking to Alexandria, not part of the answer. */
+.mcard-rate { width: min(960px, 100% - 96px); margin: 36px auto 0; display: flex; gap: 12px; }
+.mcard-rate-btn {
+  flex: 1; height: 40px; border-radius: 6px;
+  border: 1px solid var(--mc-border); background: var(--mc-bg);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: var(--mc-text); font: inherit; cursor: pointer;
+}
+.mcard-rate-btn:hover { border-color: var(--mc-accent); }
+.mcard-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mc-muted); }
+.mcard-dot.is-bad { background: var(--mc-bad); }
+.mcard-dot.is-warn { background: var(--mc-warn); }
+.mcard-dot.is-ok { background: var(--mc-ok); }

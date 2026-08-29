@@ -210,7 +210,9 @@ for (const c of ic.cases) {
   eq(`interactive/hostile/${c.id}`, validateInteractive(catalog, merge(icBase, c.patch)),
      JSON.stringify(c.failures, null, 2) + '\n');
 }
-const microRules = (await readFile(join(ROOT, 'src/micro.js'), 'utf8')).split('failures.push(').length - 1 + 1;
+// +2 for the two EARLY RETURNS, which are rules that do not go through `failures.push`:
+// an empty set, and a card type that is not one of the two. Both have hostile cases.
+const microRules = (await readFile(join(ROOT, 'src/micro.js'), 'utf8')).split('failures.push(').length - 1 + 2;
 const interRules = (await readFile(join(ROOT, 'src/interactive.js'), 'utf8')).split('failures.push(').length - 1;
 eq('every boundary rule has a hostile case', String(microRules + interRules), String(ic.rules));
 
@@ -222,7 +224,14 @@ const banked = (await json('interactive/micro.json')).cards
   .every((c) => c.options.every((o) => o.response && o.response.trim().length > 0));
 eq('every option ships its response', String(banked), 'true');
 
-const mres = shapeCardResult({ card: icBase.cards[0], index: 0, chosen: 1, timeOnTaskMs: 4200 });
+// ONE KIND PER SET, and it is a schema guarantee rather than a repaired mistake: the type
+// is declared once beside the cards, so a mixed set cannot be represented at all.
+eq('a card cannot declare its own type',
+   String((await json('interactive/micro.json')).cards.every((c) => c.type === undefined)), 'true');
+eq('the set declares one kind',
+   String(typeof (await json('interactive/micro.json')).card_type === 'string'), 'true');
+
+const mres = shapeCardResult({ card: icBase.cards[0], cardType: icBase.card_type, index: 0, chosen: 1, timeOnTaskMs: 4200 });
 eq('micro stamps its producer', mres.producer, 'micro');
 eq('micro grades against the banked key', String(mres.correctness), 'true');
 eq('micro carries no notes — no agent is present when the answer lands', mres.notes, 'null\n');

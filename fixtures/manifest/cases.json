@@ -433,6 +433,26 @@
       "expect": [
         "F2 warning: world \"cartoon\": screen \"ask\" fills slot \"expression\" from channel \"expression\", which declares no opening; it will be blank at stage 0"
       ]
+    },
+    {
+      "id": "hosts-names-a-screen-the-package-does-not-ship",
+      "rule": "E10",
+      "world": "cartoon",
+      "patch": { "hosts": { "nope": ["interactive"] } },
+      "expect": [
+        "E10 error: world \"cartoon\": hosts declares screen type \"nope\", which is not declared in world.screens"
+      ]
+    },
+    {
+      "id": "hosts-declares-a-screen-that-holds-nothing",
+      "rule": "E10",
+      "world": "cartoon",
+      "_why_two": "Both are correct. An empty hosts list means E7 stops exempting the slot, so the template's data-slot is unexplained as well as the declaration being empty. Reporting every problem in one run is this validator's stated design.",
+      "patch": { "hosts": { "interactive": [] } },
+      "expect": [
+        "E7 error: world \"cartoon\": screen \"interactive\" fills slot \"interactive\", which is not a declared channel",
+        "E10 error: world \"cartoon\": hosts.\"interactive\" must list what that screen type holds, and it lists nothing"
+      ]
     }
   ]
 }

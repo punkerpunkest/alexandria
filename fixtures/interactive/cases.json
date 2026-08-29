@@ -100,10 +100,14 @@
     {
       "id": "flashcard-with-no-back",
       "patch": {
+        "card_type": "flashcard",
         "cards": [
           {
-            "type": "flashcard",
             "front": "cue"
+          },
+          {
+            "front": "cue2",
+            "back": "b"
           }
         ]
       },
@@ -118,28 +122,26 @@
     {
       "id": "card-of-an-unknown-type",
       "patch": {
-        "cards": [
-          {
-            "type": "matching-pairs",
-            "front": "Q"
-          }
-        ]
+        "card_type": "matching-pairs"
       },
       "failures": [
         {
-          "scope": "cards",
-          "card": 0,
-          "reason": "unknown card type \"matching-pairs\""
+          "scope": "set",
+          "reason": "card type \"matching-pairs\" is not one of multiple-choice, flashcard"
         }
       ]
     },
     {
       "id": "empty-front",
       "patch": {
+        "card_type": "flashcard",
         "cards": [
           {
-            "type": "flashcard",
             "front": " ",
+            "back": "b"
+          },
+          {
+            "front": "c",
             "back": "b"
           }
         ]
@@ -155,10 +157,10 @@
     {
       "id": "flashcard-carrying-mcq-fields",
       "patch": {
+        "card_type": "flashcard",
         "cards": [
           {
-            "type": "flashcard",
-            "front": "cue",
+            "front": "c",
             "back": "b",
             "answer": 0,
             "options": [
@@ -171,6 +173,10 @@
                 "response": "r"
               }
             ]
+          },
+          {
+            "front": "c2",
+            "back": "b2"
           }
         ]
       },

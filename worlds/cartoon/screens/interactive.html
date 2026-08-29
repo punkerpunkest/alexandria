@@ -4,12 +4,16 @@
      template is where in the screen, and the runtime mounts the arena (or the substitute
      card set) into `data-slot="interactive"`.
 
-     ALONE means alone: the teacher and the control bar are deliberately not declared here,
-     so the projector prunes them for the length of the mount. The exit control inside the
-     arena is the only way out of one, and a persisted Continue sitting beside it would be a
-     second one that skips the result instead of returning it. The progress bar stays,
-     because it is a readout of the module just read rather than part of the interactive. -->
+     ALONE MEANS THE WHOLE SURFACE. The teacher, the control bar and the progress bar are
+     all absent: the projector prunes every persisted element for the length of the mount.
+     An earlier version kept the progress bar, on the argument that it reads the module just
+     finished rather than the interactive — true, and beside the point. An interactive is a
+     thing you are doing, not a thing you are reading past, and a strip of the previous
+     screen still showing says the opposite. The visual novel is the model here: the tenant
+     owns the surface, edge to edge.
+
+     The exit control inside the arena is the only way out of one, and a persisted Continue
+     sitting beside it would be a second one that skips the result instead of returning it. -->
 <section class="screen interactive">
-  <div class="progress" data-persist="progress" data-readout="progress"><i></i></div>
   <div class="handover" data-slot="interactive"></div>
 </section>

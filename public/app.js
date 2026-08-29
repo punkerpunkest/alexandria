@@ -828,7 +828,12 @@ const stickyInteractive = new URLSearchParams(location.search).get('interactive'
 // other slot, so the runtime owns the mount and the world owns the box. Read straight off
 // the manifest, exactly as `openingFrame` reads `pagination.closeWith`; the definition is
 // `hostScreen` in `src/paginate.js`, which the loader uses.
-const interactiveScreen = Object.entries(world.hosts ?? {})
+// COMPUTED PER MOUNT, not once at load, and that is forced twice over. `world` is assigned
+// when a package is opened rather than at module scope, so reading it here at load threw
+// before anything painted. And worlds SWITCH now, so a value cached at load would go on
+// naming the previous world's screen after a swap — the ordering bug and the correctness
+// bug have the same fix.
+const interactiveScreen = () => Object.entries(world?.hosts ?? {})
   .find(([, hosted]) => Array.isArray(hosted) && hosted.includes('interactive'))?.[0] ?? null;
 // THE INTERACTIVE'S OWN SURFACES, INSIDE WHATEVER ROOT THE WORLD DECLARED. Both the arena
 // and the micro card ship a stylesheet, and A SHADOW ROOT IS A SEPARATE DOCUMENT FOR CSS:
@@ -859,8 +864,9 @@ async function dress(node) {
 // A world that declares no interactive slide still gets a boundary: it falls back to the
 // chrome's stage, which is where the card set played before any world declared anything.
 function openInteractive() {
-  if (!interactiveScreen || !templates[interactiveScreen] || !stack) return stage;
-  const node = el(templates[interactiveScreen]);
+  const type = interactiveScreen();
+  if (!type || !templates[type] || !stack) return stage;
+  const node = el(templates[type]);
   hoist(node);                                  // "alone on the slide" is this: whatever the
   const scopes = [node, ...persisted.values()]; // template does not declare gets pruned
   renderReadouts(scopes);
@@ -899,6 +905,7 @@ async function playBanked(ready) {
   return new Promise((resolve) => {
     const cards = () => playSet(host, {
       cards: answer.set,
+      cardType: answer.cardType,
       onCard: (r) => results.push(r),
       onDone: ({ skipped, answered }) => resolve({ producer: 'micro', skipped, answered, results }),
     });

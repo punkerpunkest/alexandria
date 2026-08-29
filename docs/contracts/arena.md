@@ -259,6 +259,28 @@ optical bench, which is no longer shipped; the lessons outlived it:
   at highest priority and calls the return channel the only scoring surface in the design.
 - **The matcher, the registry, the specificity tree.** Post-PoC, and now specified:
   `docs/contracts/registry.md`. Engines still load from a local folder.
+  > [!warning] The choice is not stable on borderline modules — measured 29 Aug
+  > The same module posted three times to `/api/interactive` returned sandbox, micro,
+  > sandbox. Not a wording effect: byte-identical input. The choice is a model judgement
+  > against the enum description, so a module sitting near the line between "this engine can
+  > pose a task about this" and "adjacent" resolves differently run to run. Two students on
+  > the same module get different boundaries, and so does the same student twice.
+  >
+  > It also means the matcher does NOT key on the words in the module. Measured on the three
+  > microscope topics: how a lens forms a magnified image gets cards, driving the knobs is the
+  > coin-flip above, and looking at onion cells reliably gets the sandbox with a well-formed
+  > `focus-specimen` task. That ordering is by what the engine can ASK, which is what the
+  > schema instructs — but it reads as arbitrary to anyone expecting a microscope module to
+  > summon the microscope. Whichever way it is settled, the specificity tree is where it
+  > lands, and a deterministic lookup would remove the flip for free.
+
+- **Engines introduced themselves by name only, and that is what the model chose on.** Fixed
+  29 Aug. `pitch` is the matcher-facing line and neither shipped engine declares one, so the
+  fallback ran for every choice ever made: `microscope = Compound Microscope, for biology`.
+  The fallback is now the task space's own `job` lines, which `validateEngine` already
+  requires of every kind for exactly this reason, so an engine that validates cannot be
+  unmatchable. It did not resolve the flip above — the borderline is a matcher property, not
+  a description one.
 - **`never-ready` cannot be reached through the real loop.** `offerable()` filters test
   engines by subject, so no fixture can select one and the readiness deadline is reachable
   only from the bench. A testability gap rather than a defect, but it means the degrade's
@@ -267,6 +289,21 @@ optical bench, which is no longer shipped; the lessons outlived it:
   `position: absolute; inset: 0`, so it covers the bar and the quiet `--warn` line the
   design asks for. Fixing it means touching either `arena.css` or `micro-card.css` to agree
   on who positions what.
+- **The unskinned card is pillarboxed, and the boards draw it full-bleed.** Fixed 29 Aug for
+  everything except its box: `micro-card.css` is now measured off the five Anatomy boards
+  (`jyAPEoZea6zdiSj9IGdIOF`, page `6:27`), which the first build was written without ever
+  opening. But those boards draw the card at the full 1440, and the card mounts inside the
+  world's slide, so Cartoon's declared 1.772 aspect pillarboxes it to 1128 with the world's
+  ground showing either side. `Alexandria - Interactives` already reasons to the same
+  full-bleed answer from the other direction — an unskinned card is not the world's content,
+  so inheriting the world's artboard would let a world constrain Alexandria's own surface.
+  > [!warning] Closing it deletes a World Spec feature, so it is not closed here
+  > Full-bleed means mounting into `stage` rather than into the world's `hosts` slide, and
+  > the arena boards (`68:2`) draw the arena at 1440 too. Taken together that makes `hosts`
+  > meaningful only for a *skinned* card — which is the same row already open above as
+  > "the manifest shape is NOT the one `Alexandria - World Spec` writes". One decision, and
+  > it belongs to whoever ratifies that row, not to this one.
+
 - **A long task sentence is cut at roughly 60 characters.** The bar is `nowrap` with an
   ellipsis while `SENTENCE_MAX` is 140. The chrome states the task, so it should be able to
   state all of it.

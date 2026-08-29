@@ -9,12 +9,20 @@
         "molecule-builder",
         "none"
       ],
-      "description": "Which simulation fits the module just taught, or \"none\". Choose one ONLY if it can pose a task about this material; a simulation about something adjacent is worse than cards, because it costs the student minutes. Options: microscope = Compound Microscope, for biology; molecule-builder = Molecule Builder, for chemistry; none = nothing here fits, so write cards instead."
+      "description": "Which simulation fits the module just taught, or \"none\". Choose one ONLY if it can pose a task about this material; a simulation about something adjacent is worse than cards, because it costs the student minutes. Options: \n- microscope = Compound Microscope (biology) — can pose: bring the slide into sharp focus at one named total magnification, starting from a stated state the instrument was left in; or work up the objectives in order, bringing the specimen into focus at every power on the way rather than only at the top one. Scores the sequence, not the endpoint\n- molecule-builder = Molecule Builder (chemistry) — can pose: build one specific named molecule from individual atoms; or build any molecule that satisfies one structural constraint, where more than one answer is correct\n- none = nothing here fits, so write cards instead."
     },
     "sentence": {
       "type": "string",
       "maxLength": 140,
       "description": "One sentence telling the student what to do in the simulation, addressed to them. Alexandria says this, never the simulation, so it must stand alone. Leave it empty when engine is \"none\"."
+    },
+    "card_type": {
+      "type": "string",
+      "enum": [
+        "multiple-choice",
+        "flashcard"
+      ],
+      "description": "What kind of card this whole set is; every card in it is this kind. multiple-choice asks the student to commit to one of several answers. flashcard asks them to recall the answer themselves and then rate how well they did. Choose flashcard when the material is worth generating from memory, multiple-choice when the interesting part is the wrong turns a student takes."
     },
     "cards": {
       "type": "array",
@@ -24,18 +32,9 @@
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "type",
           "front"
         ],
         "properties": {
-          "type": {
-            "type": "string",
-            "enum": [
-              "multiple-choice",
-              "flashcard"
-            ],
-            "description": "multiple-choice asks the student to commit to one of several answers. flashcard asks them to recall the answer themselves and then rate whether they got it. Prefer a mix: a flashcard covers generative recall, which multiple choice cannot."
-          },
           "front": {
             "type": "string",
             "maxLength": 200,
@@ -202,6 +201,7 @@
   },
   "required": [
     "engine",
+    "card_type",
     "cards"
   ]
 }

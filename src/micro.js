@@ -31,16 +31,8 @@ export function cardSchema() {
   return {
     type: 'object',
     additionalProperties: false,
-    required: ['type', 'front'],
+    required: ['front'],
     properties: {
-      type: {
-        type: 'string',
-        enum: CARD_TYPES,
-        description: 'multiple-choice asks the student to commit to one of several answers. '
-          + 'flashcard asks them to recall the answer themselves and then rate whether they '
-          + 'got it. Prefer a mix: a flashcard covers generative recall, which multiple '
-          + 'choice cannot.',
-      },
       front: {
         type: 'string', maxLength: CAPS.front,
         description: 'The question, for multiple-choice; the cue to recall from, for a flashcard. '
@@ -80,6 +72,22 @@ export function cardSchema() {
   };
 }
 
+// ONE KIND PER SET, declared once beside the cards rather than once per card. A schema
+// cannot say "every item carries the same enum value", so a per-card `type` could only ever
+// be a request the model was free to ignore, repaired after the fact. Lifting it to the set
+// makes a mixed set unrepresentable, and the runtime stamps each card from it.
+export function cardTypeSchema() {
+  return {
+    type: 'string',
+    enum: CARD_TYPES,
+    description: 'What kind of card this whole set is; every card in it is this kind. '
+      + 'multiple-choice asks the student to commit to one of several answers. flashcard '
+      + 'asks them to recall the answer themselves and then rate how well they did. Choose '
+      + 'flashcard when the material is worth generating from memory, multiple-choice when '
+      + 'the interesting part is the wrong turns a student takes.',
+  };
+}
+
 export function setSchema() {
   return {
     type: 'array', minItems: SET.min, maxItems: SET.max, items: cardSchema(),
@@ -91,14 +99,18 @@ export function setSchema() {
 // Semantic validation. The schema guarantees SHAPE; this checks MEANING — everything the
 // schema cannot express or does not enforce. Same failure shape as `src/validate.js`:
 // named, never silent, one entry per broken rule.
-export function validateMicro(cards) {
+export function validateMicro(cards, cardType) {
   const failures = [];
   if (!Array.isArray(cards) || cards.length === 0) {
     return [{ scope: 'set', reason: 'no cards returned' }];
   }
 
+  if (!CARD_TYPES.includes(cardType)) {
+    return [{ scope: 'set', reason: `card type "${cardType}" is not one of ${CARD_TYPES.join(', ')}` }];
+  }
+
   cards.forEach((c, i) => {
-    if (c.type === 'multiple-choice') {
+    if (cardType === 'multiple-choice') {
       const n = c.options?.length ?? 0;
       if (n < SET.options.min) {
         failures.push({ card: i, reason: `multiple-choice needs at least ${SET.options.min} options, got ${n}` });
@@ -114,12 +126,10 @@ export function validateMicro(cards) {
         }
       });
       if (c.back != null) failures.push({ card: i, reason: 'multiple-choice must not carry a flashcard back' });
-    } else if (c.type === 'flashcard') {
+    } else {
       if (!c.back?.trim()) failures.push({ card: i, reason: 'flashcard has no back, so there is nothing to check against' });
       if (c.options != null) failures.push({ card: i, reason: 'flashcard must not carry multiple-choice options' });
       if (c.answer != null) failures.push({ card: i, reason: 'flashcard must not carry an answer index' });
-    } else {
-      failures.push({ card: i, reason: `unknown card type "${c.type}"` });
     }
     if (!c.front?.trim()) failures.push({ card: i, reason: 'front is empty' });
   });
@@ -132,7 +142,7 @@ export function validateMicro(cards) {
 // that take time no word count predicts.
 export const THINK_MS = { 'multiple-choice': 6000, flashcard: 9000 };
 
-export function answeringTimeMs(cards) {
+export function answeringTimeMs(cards, cardType) {
   const words = (s) => String(s ?? '').trim().split(/\s+/).filter(Boolean).length;
   return Math.round(cards.reduce((ms, c) => {
     const opts = c.options ?? [];
@@ -144,7 +154,7 @@ export function answeringTimeMs(cards) {
       ? opts.reduce((n, o) => n + words(o.response), 0) / opts.length : 0;
     const text = words(c.front) + words(c.back)
       + opts.reduce((n, o) => n + words(o.text), 0) + responseWords;
-    return ms + (text / 200) * 60 * 1000 + (THINK_MS[c.type] ?? 0);
+    return ms + (text / 200) * 60 * 1000 + (THINK_MS[cardType] ?? 0);
   }, 0));
 }
 
@@ -152,18 +162,18 @@ export function answeringTimeMs(cards) {
 // same reason the arena stamps it: one shape, two producers, and neither may claim to be
 // the other. `notes` is empty by construction — no agent is present when a micro answer
 // lands, so there is nobody to observe which rule was broken.
-export function shapeCardResult({ card, index, chosen, selfRating, timeOnTaskMs }) {
-  const correct = card.type === 'multiple-choice' ? chosen === card.answer : null;
+export function shapeCardResult({ card, cardType, index, chosen, selfRating, timeOnTaskMs }) {
+  const correct = cardType === 'multiple-choice' ? chosen === card.answer : null;
   return {
     producer: 'micro',
-    card: { index, type: card.type },
-    scored: card.type === 'multiple-choice',
+    card: { index, type: cardType },
+    scored: cardType === 'multiple-choice',
     time_on_task_ms: Math.max(0, Math.round(timeOnTaskMs)),
-    attempt: card.type === 'multiple-choice' ? { chosen } : { revealed: true },
+    attempt: cardType === 'multiple-choice' ? { chosen } : { revealed: true },
     correctness: correct,
     // Flashcard self-rating only, per the contract: a student's own read on whether they
     // knew it is the only confidence signal micro has.
-    confidence: card.type === 'flashcard' && typeof selfRating === 'number' ? selfRating : null,
+    confidence: cardType === 'flashcard' && typeof selfRating === 'number' ? selfRating : null,
     notes: null,
   };
 }

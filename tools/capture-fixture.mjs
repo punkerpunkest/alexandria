@@ -67,7 +67,7 @@ await write('interactive/schema.json', buildInteractiveSchema(catalog));
 const timing = {};
 for (const name of ['micro', 'sandbox']) {
   const out = JSON.parse(await readFile(join(F, 'interactive', `${name}.json`), 'utf8'));
-  timing[name] = answeringTimeMs(readInteractive(catalog, out).set);
+  timing[name] = (() => { const p = readInteractive(catalog, out); return answeringTimeMs(p.set, p.cardType); })();
 }
 await write('interactive/answering-time.json', timing);
 console.log(`boundary          engines=${catalog.length} ` +

@@ -30,7 +30,7 @@ export const MANIFEST_RULES = [
   'B1', 'B2', 'B3',
   'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7',
   'D1', 'D2', 'D3', 'D4', 'D5',
-  'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9',
+  'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7', 'E8', 'E9', 'E10',
   'F1', 'F2',
 ];
 
@@ -398,8 +398,14 @@ export function validateManifest(world, { dir = null, files = null, templates = 
   // A regex over `data-slot="…"` is enough; `public/app.js` already scans templates this
   // way with `t.includes(attr)`, so no HTML parser is involved.
   if (templates) {
+    // COMMENTS ARE STRIPPED FIRST, and that is not tidiness. This is a regex over raw
+    // text, so a template that DOCUMENTS a slot — `the runtime mounts into
+    // data-slot="interactive"` in a comment above the markup — was reporting the slot
+    // twice, and would report one that does not exist at all. Every template in this repo
+    // carries exactly that kind of comment, which is the house style.
     const attrs = (html, attr) =>
-      [...String(html).matchAll(new RegExp(`${attr}="([^"]*)"`, 'g'))].map((x) => x[1]);
+      [...String(html).replace(/<!--[\s\S]*?-->/g, '')
+        .matchAll(new RegExp(`${attr}="([^"]*)"`, 'g'))].map((x) => x[1]);
     // Every slot any screen declares itself the host of. Values, not keys: the key is the
     // screen type and the values are what it may host.
     const hosted = new Set(Object.values(world.hosts ?? {}).flat());
@@ -450,6 +456,26 @@ export function validateManifest(world, { dir = null, files = null, templates = 
         if (!def.required) continue;
         warn('E9', 'screens', `no screen places data-slot="controls", so archetype ` +
              `"${m.archetype}"'s required control "${cname}" falls back to the chrome's placement`);
+      }
+    }
+
+    // ---- E10. a host declaration names a screen the package ships --------------
+    // A WORLD DECLARES WHERE A NON-BEAT SCREEN SITS, and one naming a screen type the
+    // package never shipped is broken: the student reaches a boundary and the interactive
+    // has nowhere to go.
+    //
+    // This began life as a top-level throw in `server.js`, added by the lane that taught a
+    // world to host an interactive. It could not survive here — that file no longer has a
+    // single `world` to check, it has a registry of them — so the check belongs where every
+    // other manifest rule already lives, reported per package through one path instead of
+    // killing the process for all of them.
+    for (const [type, hosted] of Object.entries(world.hosts ?? {})) {
+      if (!screens[type]) {
+        say('E10', `hosts.${type}`, `hosts declares screen type "${type}", ` +
+            'which is not declared in world.screens');
+      } else if (!Array.isArray(hosted) || !hosted.length) {
+        say('E10', `hosts.${type}`, `hosts."${type}" must list what that screen type holds, ` +
+            'and it lists nothing');
       }
     }
 

@@ -14,6 +14,12 @@
 // NOTHING HERE WAITS. Every response the student can see is already in the card, written
 // when the set was written, so answering costs no round trip. There is no fetch in this
 // file and there must never be one.
+//
+// BUILT AGAINST THE BOARDS, which is new — the first version of this file was written from
+// the design note's prose without opening Figma, and did not match. File
+// `jyAPEoZea6zdiSj9IGdIOF`, page `6:27 Anatomy`: `61:2` / `61:49` / `61:103` are multiple
+// choice asked / correct / wrong, `62:2` / `62:36` are flashcard cue / revealed. The
+// geometry lives in `micro-card.css`; what is here is the structure those boards imply.
 
 import { shapeCardResult } from '/src/micro.js';
 
@@ -25,11 +31,21 @@ if (!document.querySelector('link[data-micro-card]')) {
   document.head.append(link);
 }
 
+// Tokyo Night Storm, read off the boards' own variables rather than transcribed by eye:
+// `get_variable_defs` on `61:103` and `62:2`. `--mc-warn` is the one value not bound to a
+// board variable — the Shaky dot is drawn as a raw fill — so it is the standard Storm yellow.
 const PALETTE = {
-  '--mc-bg': '#1f2335', '--mc-surface': '#24283b', '--mc-border': '#3b4261',
+  '--mc-bg-darker': '#1a1b26', '--mc-bg-dark': '#1f2335', '--mc-bg': '#24283b',
+  '--mc-bg-hi': '#292e42', '--mc-border': '#3b4261',
   '--mc-text': '#c0caf5', '--mc-dim': '#a9b1d6', '--mc-muted': '#565f89',
   '--mc-accent': '#7aa2f7', '--mc-ok': '#9ece6a', '--mc-warn': '#e0af68', '--mc-bad': '#f7768e',
+  '--mc-white': '#ffffff',
 };
+
+// Board order, and it runs worst-to-best left to right so the safe answer is not the nearest
+// one to the hand. Values are what `shapeCardResult` records as confidence.
+const RATINGS = [['Missed', 'is-bad', 0], ['Shaky', 'is-warn', 0.5], ['Knew it', 'is-ok', 1]];
+const KEYS = 'abcdefghij';
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -43,20 +59,23 @@ const el = (tag, cls, text) => {
  *
  * `onCard` fires once per answered card with the ledger payload. `onDone` fires when the
  * set is exhausted or skipped — `skipped` says which, because a skipped set is what makes
- * the ledger owe an item.
+ * the ledger owe an item. `kind` is the word in the header: RECALL for a set generated at
+ * this boundary, RETURNING for an owed item coming back (board `80:2`).
  */
-export function playSet(host, { cards, banked = false, onCard = () => {}, onDone = () => {} }) {
+export function playSet(host, { cards, cardType, kind = 'RECALL', banked = false, onCard = () => {}, onDone = () => {} }) {
   const root = el('div', 'mcard');
+  root.dataset.type = cardType;
   for (const [k, v] of Object.entries(PALETTE)) root.style.setProperty(k, v);
 
   const head = el('div', 'mcard-head');
   const count = el('span', 'mcard-count');
   const skip = el('button', 'mcard-skip', 'Skip');
-  head.append(count, skip);
+  const right = el('div', 'mcard-head-right');
+  right.append(count, skip);
+  head.append(el('span', 'mcard-kind', kind), right);
 
   const body = el('div', 'mcard-body');
-  const foot = el('div', 'mcard-foot');
-  root.append(head, body, foot);
+  root.append(head, body);
   host.append(root);
 
   let i = 0;
@@ -83,69 +102,95 @@ export function playSet(host, { cards, banked = false, onCard = () => {}, onDone
 
   function draw() {
     const card = cards[i];
-    count.textContent = `${i + 1} of ${cards.length}`;
+    // Board format, spaces included: "2 / 4".
+    count.textContent = `${i + 1} / ${cards.length}`;
     body.replaceChildren();
-    foot.replaceChildren();
-    body.append(el('p', 'mcard-front', card.front));
-    if (card.type === 'multiple-choice') drawChoice(card);
+    if (cardType === 'multiple-choice') drawChoice(card);
     else drawFlashcard(card);
   }
 
   function drawChoice(card) {
+    const wrap = el('div', 'mcard-mc');
     const list = el('div', 'mcard-options');
+    wrap.append(el('p', 'mcard-question', card.front), list);
+
     card.options.forEach((opt, j) => {
-      const b = el('button', 'mcard-option', opt.text);
+      const b = el('button', 'mcard-option');
+      b.append(el('span', 'mcard-key', KEYS[j]), el('span', 'mcard-option-text', opt.text), el('span', 'mcard-flag'));
       b.addEventListener('click', () => {
         // Everything from here is local. The response was banked with the card.
-        const right = j === card.answer;
-        for (const other of list.querySelectorAll('.mcard-option')) other.disabled = true;
-        b.classList.add(right ? 'is-right' : 'is-wrong');
-        if (!right) list.children[card.answer]?.classList.add('is-key');
-        foot.append(el('p', `mcard-response ${right ? 'is-right' : 'is-wrong'}`, opt.response));
-        foot.append(nextButton());
-        onCard(shapeCardResult({ card, index: i, chosen: j, timeOnTaskMs: performance.now() - shownAt }));
+        const correct = j === card.answer;
+        for (const other of list.children) other.disabled = true;
+
+        // BOTH rows get marked when they miss it. The key row always turns green and says so;
+        // a wrong choice additionally turns red and is named. Boards 61:49 and 61:103.
+        const key = list.children[card.answer];
+        key?.classList.add('is-correct');
+        if (key) key.querySelector('.mcard-flag').textContent = 'correct';
+        if (!correct) {
+          b.classList.add('is-chosen-wrong');
+          b.querySelector('.mcard-flag').textContent = 'you chose this';
+        }
+
+        wrap.append(el('p', `mcard-response ${correct ? 'is-right' : 'is-wrong'}`, opt.response), nextButton());
+        onCard(shapeCardResult({ card, cardType, index: i, chosen: j, timeOnTaskMs: performance.now() - shownAt }));
       });
       list.append(b);
     });
-    body.append(list);
+    body.append(wrap);
   }
 
   function drawFlashcard(card) {
-    const reveal = el('button', 'mcard-primary', 'Show the answer');
-    reveal.addEventListener('click', () => {
-      foot.replaceChildren();
-      body.append(el('p', 'mcard-back', card.back));
-      reveal.remove();
-      // Self-rating is the ONLY confidence signal micro has, and it is flashcard-only —
-      // a multiple-choice answer is graded, so asking how sure they were adds nothing the
-      // key does not already say.
+    const wrap = el('div', 'mcard-fc');
+    const deck = el('div', 'mcard-deck');
+    const face = el('button', 'mcard-face is-current');
+    face.dataset.reveal = '';
+    // The neighbours exist to say a deck exists. They are never filled and never focusable.
+    deck.append(el('div', 'mcard-face is-peek'), face, el('div', 'mcard-face is-peek'));
+    wrap.append(deck);
+
+    face.append(el('span', 'mcard-term', card.front), el('span', 'mcard-hint', 'Click to reveal'));
+    // The whole face is the target — the board's affordance is "Click to reveal", not a
+    // button under the card. `once` because a second reveal would re-enter with a stale card.
+    face.addEventListener('click', () => {
+      delete face.dataset.reveal;
+      face.replaceChildren(el('span', 'mcard-term-small', card.front), el('p', 'mcard-back', card.back));
+
+      // Self-rating is the ONLY confidence signal micro has, and it is flashcard-only — a
+      // multiple-choice answer is graded, so asking how sure they were adds nothing the key
+      // does not already say. It sits OUTSIDE the white card: rating is the student talking
+      // to Alexandria, not part of the card's content.
       const rate = el('div', 'mcard-rate');
-      for (const [label, value] of [['I knew it', 1], ['Not quite', 0.5], ['No idea', 0]]) {
-        const b = el('button', 'mcard-option', label);
+      for (const [label, tone, value] of RATINGS) {
+        const b = el('button', 'mcard-rate-btn');
+        b.append(el('span', `mcard-dot ${tone}`), el('span', null, label));
         b.addEventListener('click', () => {
-          onCard(shapeCardResult({ card, index: i, selfRating: value, timeOnTaskMs: performance.now() - shownAt }));
+          onCard(shapeCardResult({ card, cardType, index: i, selfRating: value, timeOnTaskMs: performance.now() - shownAt }));
           advance();
         });
         rate.append(b);
       }
-      foot.append(rate);
-    });
-    body.append(reveal);
+      wrap.append(rate);
+    }, { once: true });
+
+    body.append(wrap);
   }
 
   function nextButton() {
-    const b = el('button', 'mcard-primary', i === cards.length - 1 ? 'Done' : 'Next');
-    // The bank becoming visible, the same single control the arena uses: same position,
-    // same size, only the weight changes when what comes next is already written.
-    if (banked) b.classList.add('is-banked');
-    b.addEventListener('click', advance);
-    return b;
+    // The board draws only the mid-set case. "Done" on the last card is the one label added
+    // beyond it, because "Next card" followed by the set ending is a small lie.
+    return Object.assign(el('button', 'mcard-next', i === cards.length - 1 ? 'Done' : 'Next card'), {
+      onclick: advance,
+    });
   }
 
   draw();
   return {
     el: root,
-    setBanked(v) { banked = v; foot.querySelector('.mcard-primary')?.classList.toggle('is-banked', v); },
+    // Kept so the handle matches the arena's, but the card no longer changes on it. The
+    // filled-once-the-module-lands treatment is the ARENA's rule — its exit relabels to
+    // `Continue` — and the boards draw this button filled unconditionally.
+    setBanked(v) { banked = v; },
     destroy() { done = true; root.remove(); },
   };
 }

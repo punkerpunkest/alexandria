@@ -22,7 +22,7 @@
 // seam a specificity-tree lookup replaces, and nothing outside this file names an engine.
 
 import { buildTaskSchema } from './engine.js';
-import { setSchema, validateMicro } from './micro.js';
+import { setSchema, cardTypeSchema, validateMicro } from './micro.js';
 
 export const NO_ENGINE = 'none';
 
@@ -38,9 +38,34 @@ const taskKey = (id) => `task_${id}`;
 
 // A single line per engine, folded into the enum's description — the same shape
 // `describeSet` uses in `src/schema.js` for asset channels, because the schema IS part of
-// the prompt. An engine's `pitch` is its matcher-facing sentence; without one it falls
-// back to name and subject rather than being silently unmatchable.
-const pitch = (e) => e.pitch ?? `${e.name}, for ${e.subject}`;
+// the prompt. An engine's `pitch` is its matcher-facing sentence when it declares one.
+//
+// WITHOUT ONE THE FALLBACK IS THE TASK SPACE, not the name. It used to be name and subject,
+// which is how `microscope` came to introduce itself as "Compound Microscope, for biology" —
+// nine words that say what it IS and nothing about what it can ASK. Measured 29 Aug on the
+// live loop: a module on how lenses magnify got cards, and the very next module, on the
+// coarse and fine focus knobs, got the sandbox. The engine was equally able to pose a task
+// about both; the only thing that differed was whether the module's wording happened to
+// collide with the engine's name. Neither shipped engine declares a `pitch`, so every choice
+// made so far was made on that line.
+//
+// The job lines are the right fallback because `validateEngine` already REQUIRES one per
+// task kind, for this exact reason — "has no job line, so the model cannot be told what it
+// is for". An engine that passes validation therefore cannot be unmatchable.
+const ASKS = /^ask the student to /i;
+const canPose = (e) => Object.values(e.taskSpace ?? {})
+  // Trailing stops come off so the join does not produce ".; or".
+  .map((k) => String(k?.job ?? '').replace(ASKS, '').trim().replace(/\.$/, ''))
+  .filter(Boolean);
+const pitch = (e) => {
+  if (e.pitch) return e.pitch;
+  const can = canPose(e);
+  // Name and subject stay in front — the model still needs to know what the thing is, it
+  // just no longer has to GUESS what it can do from the name alone.
+  return can.length
+    ? `${e.name} (${e.subject}) — can pose: ${can.join('; or ')}`
+    : `${e.name}, for ${e.subject}`;
+};
 
 export function buildInteractiveSchema(engines) {
   const ids = engines.map((e) => e.id);
@@ -52,8 +77,11 @@ export function buildInteractiveSchema(engines) {
         'Which simulation fits the module just taught, or "none". Choose one ONLY if it can '
         + 'pose a task about this material; a simulation about something adjacent is worse than '
         + 'cards, because it costs the student minutes. Options: '
-        + engines.map((e) => `${e.id} = ${pitch(e)}`).join('; ')
-        + `; ${NO_ENGINE} = nothing here fits, so write cards instead.`,
+        // ONE LINE PER ENGINE. Joining with "; " put the same separator between engines as
+        // `pitch` uses between an engine's own task kinds, so where one entry stopped and the
+        // next began was ambiguous exactly where it mattered most.
+        + engines.map((e) => `\n- ${e.id} = ${pitch(e)}`).join('')
+        + `\n- ${NO_ENGINE} = nothing here fits, so write cards instead.`,
     },
     sentence: {
       type: 'string', maxLength: SENTENCE_MAX,
@@ -61,6 +89,7 @@ export function buildInteractiveSchema(engines) {
         + 'them. Alexandria says this, never the simulation, so it must stand alone. Leave it '
         + `empty when engine is "${NO_ENGINE}".`,
     },
+    card_type: cardTypeSchema(),
     cards: setSchema(),
   };
 
@@ -81,7 +110,7 @@ export function buildInteractiveSchema(engines) {
     type: 'object', additionalProperties: false, properties,
     // Cards are required unconditionally: they are the answer when no engine fits AND the
     // substitute when the chosen one is not warm.
-    required: ['engine', 'cards'],
+    required: ['engine', 'card_type', 'cards'],
   };
 }
 
@@ -97,6 +126,10 @@ export function buildInteractivePrompt(engines) {
     'mistake a real student makes rather than a filler answer. Each option carries the',
     'response the student sees the moment they pick it, so write those now — nothing may be',
     'looked up later.',
+    '',
+    'Pick ONE kind of card for the whole set. A set is all flashcards or all multiple',
+    'choice, never a mix — switching format mid-set makes the student re-learn the',
+    'interaction instead of the material.',
     '',
     engines.length
       ? 'Choose a simulation only when it genuinely fits the material. Otherwise choose "none".'
@@ -115,12 +148,13 @@ export function pickEngine(engines, chosen) {
 // touches the raw shape, so the `task_<id>__<kind>` encoding stays inside this file.
 export function readInteractive(engines, out) {
   const cards = out?.cards ?? [];
+  const cardType = out?.card_type;
   const engine = pickEngine(engines, out?.engine);
-  if (!engine) return { producer: 'micro', set: cards };
+  if (!engine) return { producer: 'micro', set: cards, cardType };
 
   const kind = Object.keys(engine.taskSpace)
     .find((k) => out[`${taskKey(engine.id)}__${k}`] != null);
-  if (!kind) return { producer: 'micro', set: cards };   // chose an engine, gave it nothing
+  if (!kind) return { producer: 'micro', set: cards, cardType };  // chose an engine, gave it nothing
 
   return {
     producer: 'sandbox',
@@ -128,13 +162,14 @@ export function readInteractive(engines, out) {
     task: { kind, params: out[`${taskKey(engine.id)}__${kind}`], sentence: out.sentence ?? '' },
     // Carried, not discarded: this is what the arena degrades TO when the engine is cold.
     set: cards,
+    cardType,
   };
 }
 
 export function validateInteractive(engines, out) {
   // Key ORDER is part of the comparison the fixture makes, so it is fixed here rather than
   // left to however the spread happened to land. Set-scope failures pass through untouched.
-  const failures = validateMicro(out?.cards).map((f) =>
+  const failures = validateMicro(out?.cards, out?.card_type).map((f) =>
     f.scope ? f : { scope: 'cards', card: f.card, reason: f.reason });
   const engine = pickEngine(engines, out?.engine);
 

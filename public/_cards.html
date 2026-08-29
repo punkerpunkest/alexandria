@@ -1,0 +1,94 @@
+<!doctype html><meta charset="utf-8"><title>micro card — board states</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#0d0e14; color:#a9b1d6;
+         font:13px/1.6 "Hack Nerd Font",Hack,"JetBrains Mono",ui-monospace,monospace; }
+  header { padding:28px 32px 8px; border-bottom:1px solid #292e42; }
+  h1 { margin:0 0 6px; font-size:19px; color:#c0caf5; font-weight:700; }
+  header p { margin:0; color:#565f89; max-width:900px; }
+  section { padding:28px 32px 0; }
+  .bar { display:flex; align-items:baseline; gap:14px; margin-bottom:10px; }
+  .bar b { color:#7aa2f7; font-weight:700; font-size:15px; }
+  .bar a { color:#565f89; }
+  .bar em { color:#565f89; font-style:normal; }
+  /* The board's main surface: 1440x860 is what sits under the chrome's 40px strip. */
+  .stage { position:relative; width:1440px; height:860px; border:1px solid #292e42; }
+  .live .stage { border-color:#3b4261; }
+  footer { padding:40px 32px 80px; color:#565f89; }
+</style>
+<header>
+  <h1>micro card — the five Anatomy boards</h1>
+  <p>Each frame below is the board's own main surface at 1440&times;860. The chrome's top strip
+     (Alexandria mark, quota readout) is deliberately absent: it belongs to the chrome branch,
+     not to this component. Open the board link beside each to compare. The last two are live —
+     click through them.</p>
+</header>
+<div id="out"></div>
+<footer>The real loop, multiple choice only because that is what the blessed fixture holds:
+  <a style="color:#7aa2f7" href="/?fixture=max&interactive=micro">/?fixture=max&amp;interactive=micro</a>
+</footer>
+
+<script type="module">
+import { playSet } from '/micro-card.js';
+
+const MC = [{
+  front: 'A hash table doubles its capacity when the load factor gets too high. What happens to the keys already stored?',
+  answer: 1,
+  options: [
+    { text: 'They keep the buckets they already had', response: 'Not quite. The index comes from the table size, so when the size changes every key’s bucket changes with it — all of them are rehashed, not just the ones that had collided.' },
+    { text: 'They are rehashed into the new table', response: 'Right. The bucket index is derived from the table size, so changing the size changes where every key belongs. That is why a resize is O(n) and why the cost is amortised rather than cheap.' },
+    { text: 'Only the keys that had collided move', response: 'Not quite. The index comes from the table size, so when the size changes every key’s bucket changes with it — all of them are rehashed, not just the ones that had collided.' },
+    { text: 'Nothing, until each one is next looked up', response: 'Not quite. The index comes from the table size, so when the size changes every key’s bucket changes with it — all of them are rehashed, not just the ones that had collided.' },
+  ],
+}, {
+  front: 'Two hash tables hold the same keys but were built with different capacities. What can you say about the bucket a given key sits in?',
+  answer: 0,
+  options: [
+    { text: 'It may differ between the two', response: 'Right. The bucket is the hash reduced modulo the capacity, so the same key lands differently in tables of different size.' },
+    { text: 'It is the same in both', response: 'Not quite. The hash is the same, but the bucket is that hash reduced modulo the capacity — change the capacity and the bucket moves.' },
+    { text: 'It is the same only for string keys', response: 'Not quite. Key type has nothing to do with it; the reduction step is what differs.' },
+  ],
+}];
+
+const FC = [{
+  front: 'Rehashing',
+  back: 'Recomputing every key’s bucket after the table changes size — the reason a resize costs O(n) instead of being a cheap append.',
+}, {
+  front: 'Load factor',
+  back: 'The ratio of stored entries to buckets. It is the number a table watches to decide when the chains have grown long enough to be worth resizing.',
+}];
+
+const out = document.getElementById('out');
+function stage(id, label, live) {
+  const sec = document.createElement('section');
+  if (live) sec.className = 'live';
+  sec.innerHTML = `<div class="bar"><b>${label}</b>` +
+    (id ? `<a href="https://www.figma.com/design/jyAPEoZea6zdiSj9IGdIOF?node-id=${id.replace(':','-')}" target="_blank">board ${id}</a>` : '') +
+    (live ? `<em>live — click through it</em>` : '') + `</div>`;
+  const d = document.createElement('div'); d.className = 'stage';
+  sec.append(d); out.append(sec); return d;
+}
+
+playSet(stage('61:2', 'multiple choice / asked'), { cards: MC, cardType: 'multiple-choice' });
+
+const c = stage('61:49', 'multiple choice / correct');
+playSet(c, { cards: MC, cardType: 'multiple-choice' });
+c.querySelectorAll('.mcard-option')[1].click();
+
+const w = stage('61:103', 'multiple choice / wrong');
+playSet(w, { cards: MC, cardType: 'multiple-choice' });
+w.querySelectorAll('.mcard-option')[2].click();
+
+playSet(stage('62:2', 'flashcard / cue'), { cards: FC, cardType: 'flashcard' });
+
+const r = stage('62:36', 'flashcard / revealed');
+playSet(r, { cards: FC, cardType: 'flashcard' });
+r.querySelector('.mcard-face.is-current').click();
+
+// Live. Restart on completion so the surface is never left empty.
+const replay = (host, cards, cardType) => playSet(host, {
+  cards, cardType, onDone: () => replay(host, cards, cardType),
+});
+replay(stage(null, 'multiple choice — play the whole set', true), MC, 'multiple-choice');
+replay(stage(null, 'flashcard — play the whole set', true), FC, 'flashcard');
+</script>
