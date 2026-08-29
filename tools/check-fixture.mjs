@@ -12,7 +12,6 @@ import { validateEngine, buildTaskSchema, shapeResult, entryUrl } from '../src/e
 import { validateMicro, answeringTimeMs, shapeCardResult } from '../src/micro.js';
 import { buildInteractiveSchema, readInteractive, validateInteractive, offerable } from '../src/interactive.js';
 import { validateManifest, MANIFEST_RULES } from '../src/manifest.js';
-import { empty as emptyLedger, record as recordResult, dueCount, nextOwed, playable } from '../src/ledger.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const F = join(ROOT, 'fixtures');
@@ -328,48 +327,6 @@ eq('micro carries no notes — no agent is present when the answer lands', mres.
   eq('every manifest case names a real rule',
      [...covered].filter((r) => !MANIFEST_RULES.includes(r)).join(','), '');
 }
-
-// ---- the ledger ---------------------------------------------------------------
-//
-// Every case starts EMPTY and applies its own records, so no case can pass because an
-// earlier one left the right state behind. `@first` in a `returningId` resolves to whatever
-// is owed at that moment, which is what the runtime would actually send back.
-const lc = await json('ledger/cases.json');
-for (const c of lc.cases) {
-  let led = emptyLedger();
-  for (const r of c.records) {
-    const entry = r.returningId === '@first'
-      ? { ...r, returningId: nextOwed(led)?.id ?? 'none' }
-      : r;
-    led = recordResult(led, entry, '2026-08-29T00:00:00.000Z');
-  }
-  eq(`ledger/${c.id} due`, String(dueCount(led)), String(c.due));
-  eq(`ledger/${c.id} notices`,
-     JSON.stringify(led.owed.map((o) => o.notice), null, 2) + '\n',
-     JSON.stringify(c.notices, null, 2) + '\n');
-}
-
-// THE RETURNING ITEM IS PLAYABLE WITHOUT GENERATION, which is the property that makes the
-// narrow ledger cheap: the cards it hands back were written when the item was first offered.
-{
-  let led = emptyLedger();
-  led = recordResult(led, {
-    producer: 'sandbox', result: { completed: false },
-    item: { cardType: 'multiple-choice', engine: { id: 'e', name: 'the sandbox' },
-            set: [{ front: 'q' }] },
-  }, '2026-08-29T00:00:00.000Z');
-  const p = playable(nextOwed(led));
-  eq('ledger returns a set the card component can play',
-     String(Boolean(p.set.length && p.cardType && p.returningId)), 'true');
-  eq('a returning set is labelled RETURNING', p.kind, 'RETURNING');
-}
-
-// The owe signals live in the CONTRACTS, not here — if either renames, this fails rather
-// than the ledger silently never owing anything again.
-eq('the sandbox owe signal is still `completed`',
-   String((await readFile(join(ROOT, 'src/engine.js'), 'utf8')).includes('completed')), 'true');
-eq('the micro owe signal is still `skipped`',
-   String((await readFile(join(ROOT, 'public/micro-card.js'), 'utf8')).includes('skipped')), 'true');
 
 console.log(`${pass} checks passed${fails.length ? `, ${fails.length} FAILED` : ''}`);
 if (fails.length) { console.log('\n' + fails.join('\n\n')); process.exit(1); }

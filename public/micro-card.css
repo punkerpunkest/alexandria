@@ -46,31 +46,6 @@
 
 .mcard-body { flex: 1; min-height: 0; overflow-y: auto; }
 
-/* ── The return notice ──────────────────────────────────────────────────────
-   Board `80:2`. A pill sized to its text, `--warn` on the border and the dot, Meta 12/18
-   muted inside. It names what was skipped and what changed about it, and the rung drop is
-   said OUT LOUD because a sandbox coming back as cards otherwise reads as a downgrade
-   rather than as the design.
-
-   `--warn` and not `--danger`: this is not a fault. `Alexandria - Design` assigns the same
-   colour to the degrade for the same reason, and the header label is what tells them apart —
-   a degrade is "the sandbox is not ready, here is something else now", a return is "you did
-   not do this, here it is again, easier". They never appear together. */
-.mcard-notice {
-  display: inline-flex; align-items: center; gap: 10px;
-  margin: 0 0 24px; padding: 5px 12px;
-  border: 1px solid var(--mc-warn); border-radius: 6px;
-  color: var(--mc-muted); font-size: 12px; line-height: 18px;
-}
-.mcard-notice::before {
-  content: ''; flex: 0 0 7px; width: 7px; height: 7px;
-  border-radius: 50%; background: var(--mc-warn);
-}
-/* The flashcard has no 720 column to sit in, so it centres over the deck instead. */
-.mcard-fc > .mcard-notice { display: inline-flex; }
-.mcard-fc { text-align: center; }
-.mcard-deck { text-align: left; }
-
 /* ── Multiple choice ────────────────────────────────────────────────────────
    Board: a 720-wide column centred in 1440, top at y=120. The header occupies 36..62,
    so the gap above the column is 58. There is NO card container — the question sits

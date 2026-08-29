@@ -60,10 +60,9 @@ const el = (tag, cls, text) => {
  * `onCard` fires once per answered card with the ledger payload. `onDone` fires when the
  * set is exhausted or skipped — `skipped` says which, because a skipped set is what makes
  * the ledger owe an item. `kind` is the word in the header: RECALL for a set generated at
- * this boundary, RETURNING for an owed item coming back (board `80:2`), and `notice` is the
- * one muted line that says what was skipped and what changed about it.
+ * this boundary, RETURNING for an owed item coming back (board `80:2`).
  */
-export function playSet(host, { cards, cardType, kind = 'RECALL', notice = null, banked = false, onCard = () => {}, onDone = () => {} }) {
+export function playSet(host, { cards, cardType, kind = 'RECALL', banked = false, onCard = () => {}, onDone = () => {} }) {
   const root = el('div', 'mcard');
   root.dataset.type = cardType;
   for (const [k, v] of Object.entries(PALETTE)) root.style.setProperty(k, v);
@@ -110,14 +109,8 @@ export function playSet(host, { cards, cardType, kind = 'RECALL', notice = null,
     else drawFlashcard(card);
   }
 
-  // Shown on EVERY card of a returning set, not just the first. Board `80:2` draws it on
-  // card 2 of 4, and a student who arrives mid-set otherwise has no idea why these cards.
-  const noticeEl = () => (notice ? el('p', 'mcard-notice', notice) : null);
-
   function drawChoice(card) {
     const wrap = el('div', 'mcard-mc');
-    const n = noticeEl();
-    if (n) wrap.append(n);
     const list = el('div', 'mcard-options');
     wrap.append(el('p', 'mcard-question', card.front), list);
 
@@ -149,8 +142,6 @@ export function playSet(host, { cards, cardType, kind = 'RECALL', notice = null,
 
   function drawFlashcard(card) {
     const wrap = el('div', 'mcard-fc');
-    const n = noticeEl();
-    if (n) wrap.append(n);
     const deck = el('div', 'mcard-deck');
     const face = el('button', 'mcard-face is-current');
     face.dataset.reveal = '';

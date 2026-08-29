@@ -8,6 +8,3 @@ out/
 .DS_Store
 *.log
 npm-debug.log*
-
-# The ledger: the student history, not the code
-data/
