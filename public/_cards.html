@@ -41,6 +41,17 @@ const MC = [{
     { text: 'Nothing, until each one is next looked up', response: 'Not quite. The index comes from the table size, so when the size changes every key’s bucket changes with it — all of them are rehashed, not just the ones that had collided.' },
   ],
 }, {
+  // AT THE CAPS. `CAPS.option` is 90 characters and the text column is 654 wide, so this is
+  // what a worst-case generated option actually looks like — two lines. The board only ever
+  // drew the one-line case, which is how the fixed 48px row height got in.
+  front: 'A hash table is resized while another thread is midway through a lookup. Which of these describes what that reader can observe, assuming no synchronisation at all?',
+  answer: 0,
+  options: [
+    { text: 'It may read from the old table and miss a key that was already there before', response: 'Right. The reader can hold a reference to the pre-resize table, so a key present the whole time can still be missed.' },
+    { text: 'It always sees the new table, because the resize is atomic to readers', response: 'Not quite. Nothing here makes the swap atomic to a reader that already holds the old reference.' },
+    { text: 'It blocks until the resize finishes', response: 'Not quite. With no synchronisation there is nothing to block on.' },
+  ],
+}, {
   front: 'Two hash tables hold the same keys but were built with different capacities. What can you say about the bucket a given key sits in?',
   answer: 0,
   options: [

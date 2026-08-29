@@ -289,20 +289,20 @@ optical bench, which is no longer shipped; the lessons outlived it:
   `position: absolute; inset: 0`, so it covers the bar and the quiet `--warn` line the
   design asks for. Fixing it means touching either `arena.css` or `micro-card.css` to agree
   on who positions what.
-- **The unskinned card is pillarboxed, and the boards draw it full-bleed.** Fixed 29 Aug for
-  everything except its box: `micro-card.css` is now measured off the five Anatomy boards
-  (`jyAPEoZea6zdiSj9IGdIOF`, page `6:27`), which the first build was written without ever
-  opening. But those boards draw the card at the full 1440, and the card mounts inside the
-  world's slide, so Cartoon's declared 1.772 aspect pillarboxes it to 1128 with the world's
-  ground showing either side. `Alexandria - Interactives` already reasons to the same
-  full-bleed answer from the other direction — an unskinned card is not the world's content,
-  so inheriting the world's artboard would let a world constrain Alexandria's own surface.
-  > [!warning] Closing it deletes a World Spec feature, so it is not closed here
-  > Full-bleed means mounting into `stage` rather than into the world's `hosts` slide, and
-  > the arena boards (`68:2`) draw the arena at 1440 too. Taken together that makes `hosts`
-  > meaningful only for a *skinned* card — which is the same row already open above as
-  > "the manifest shape is NOT the one `Alexandria - World Spec` writes". One decision, and
-  > it belongs to whoever ratifies that row, not to this one.
+- ~~**The unskinned card is pillarboxed, and the boards draw it full-bleed.**~~ Closed
+  29 Aug, by Jordan noticing it in use. `openInteractive()` now returns the chrome's stage
+  unless the world declares `skins.interactive`, so an unskinned card and the arena both
+  take the full 1440 the boards draw them at.
+  > [!warning] `skins.interactive` is a proposal, not a ratified manifest key
+  > No world sets it and it is not in `Alexandria - World Spec`. It exists so the
+  > world-slide path is reachable rather than dead code, because a SKINNED interactive
+  > genuinely is the world's content and should inherit its box. `world.hosts` still names
+  > the slot. If the spec settles on a different shape, this is the one line to change.
+  >
+  > The argument that closed it was not the boards. Longform and Visual Novel declare no
+  > `hosts` and were already full bleed through the fallback, so the same card was 1128 wide
+  > in Cartoon and 1440 in the other two — a surface whose size depended on which world you
+  > happened to be in, which no reading of the spec defends.
 
 - **A long task sentence is cut at roughly 60 characters.** The bar is `nowrap` with an
   ellipsis while `SENTENCE_MAX` is 140. The chrome states the task, so it should be able to

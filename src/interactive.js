@@ -57,14 +57,42 @@ const canPose = (e) => Object.values(e.taskSpace ?? {})
   // Trailing stops come off so the join does not produce ".; or".
   .map((k) => String(k?.job ?? '').replace(ASKS, '').trim().replace(/\.$/, ''))
   .filter(Boolean);
+
+// WHAT IT CAN SHOW, not only what it can ask — and the job lines alone do not say.
+//
+// Measured 29 Aug on a real run: "what do onion cells look like below the microscope" wrote
+// a module and then got cards, while `microscope` draws exactly that. Its `specimen` enum is
+// `onion-epidermis`, and that parameter's own job calls it a field of brick-shaped plant
+// cells with nuclei. The chooser never saw the word "onion", because a task kind's job line
+// describes the PROCEDURE ("bring the slide into sharp focus") and the subject matter lives
+// one level down in the parameters. An engine whose whole point is what it renders was
+// introducing itself purely by what it makes you do.
+//
+// Enum values only. A text parameter has no vocabulary to advertise, and a number is not a
+// noun a module can be about.
+const VALUE_CAP = 8;
+const varies = (e) => {
+  const out = new Map();
+  for (const kind of Object.values(e.taskSpace ?? {})) {
+    for (const [name, p] of Object.entries(kind?.parameters ?? {})) {
+      if (p?.kind !== 'enum' || !Array.isArray(p.values)) continue;
+      const seen = out.get(name) ?? new Set();
+      for (const v of p.values) seen.add(v);
+      out.set(name, seen);                         // shared across kinds, so union not repeat
+    }
+  }
+  return [...out].map(([name, vs]) => `${name} ${[...vs].slice(0, VALUE_CAP).join('/')}`);
+};
+
 const pitch = (e) => {
   if (e.pitch) return e.pitch;
   const can = canPose(e);
   // Name and subject stay in front — the model still needs to know what the thing is, it
   // just no longer has to GUESS what it can do from the name alone.
-  return can.length
-    ? `${e.name} (${e.subject}) — can pose: ${can.join('; or ')}`
-    : `${e.name}, for ${e.subject}`;
+  if (!can.length) return `${e.name}, for ${e.subject}`;
+  const v = varies(e);
+  return `${e.name} (${e.subject}) — can pose: ${can.join('; or ')}`
+    + (v.length ? `. Varies: ${v.join(', ')}` : '');
 };
 
 export function buildInteractiveSchema(engines) {

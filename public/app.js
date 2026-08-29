@@ -863,7 +863,25 @@ async function dress(node) {
 //
 // A world that declares no interactive slide still gets a boundary: it falls back to the
 // chrome's stage, which is where the card set played before any world declared anything.
+//
+// AN UNSKINNED INTERACTIVE TAKES THE STAGE, NOT THE WORLD'S BOX — settled 29 Aug by Jordan
+// noticing the card was letterboxed. Cartoon pins a 1.772 aspect, so routing the card
+// through its slide pillarboxed Alexandria's own surface to 1128 of 1440 and showed the
+// world's ground down both sides. `Alexandria - Interactives` had already reasoned to the
+// same answer from the other direction: an unskinned card is not the world's content, so
+// inheriting the world's artboard would let a world constrain a surface that is not its
+// own. The five card boards and the arena boards all draw full bleed at 1440.
+//
+// It also made the card a DIFFERENT SIZE per world, which is the part no reading of the
+// spec defends: Longform and Visual Novel declare no `hosts` and so were already full
+// bleed through the fallback below, while Cartoon alone was inset.
+//
+// The world-slide path is kept, not deleted, because a SKINNED interactive genuinely is the
+// world's content and should inherit its box. `world.skins.interactive` is the flag that
+// reaches it and NO world sets one — it is not in `Alexandria - World Spec` yet, and naming
+// it here is a proposal, not a ratification. `world.hosts` still says where the slot is.
 function openInteractive() {
+  if (!world?.skins?.interactive) return stage;
   const type = interactiveScreen();
   if (!type || !templates[type] || !stack) return stage;
   const node = el(templates[type]);
