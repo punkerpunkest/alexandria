@@ -2,6 +2,8 @@
 
 An open source learning space for students, built on top of the model you already pay for.
 
+[![Watch the video](assets/thumbnail.png)](https://www.youtube.com/watch?v=Xcg_1qlct6E)
+
 Most students learn with LLMs now, but that experience has not really improved since the
 first chatbot. Every gain has come from the model layer, and that has made answers more
 correct without making them better to learn from. I think there are two problems with
